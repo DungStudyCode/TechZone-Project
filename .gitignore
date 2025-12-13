@@ -1,0 +1,5 @@
+# Bỏ qua tất cả node_modules ở mọi nơi
+**/node_modules
+*.log
+.env
+.DS_Store

@@ -4,6 +4,13 @@
 ![Deployment](https://img.shields.io/badge/Deploy-Vercel%20%26%20Render-blue?style=for-the-badge)
 
 **TechZone** là một nền tảng thương mại điện tử (E-commerce) Full-stack hiện đại, cung cấp trải nghiệm mua sắm trực tuyến mượt mà. Dự án được xây dựng theo kiến trúc **MERN Stack** (MongoDB, Express, React, Node.js) và đã được triển khai thực tế trên môi trường Cloud.
+<img width="1892" height="902" alt="image" src="https://github.com/user-attachments/assets/bdd1d89c-74c1-4e3c-b8e9-df3253996c9e" />
+<img width="1900" height="910" alt="image" src="https://github.com/user-attachments/assets/2cc6c701-ee20-4a67-8e10-b4165de1d362" />
+<img width="1897" height="826" alt="image" src="https://github.com/user-attachments/assets/f0892422-ee7e-4c36-a210-7e2720f8b593" />
+<img width="558" height="720" alt="image" src="https://github.com/user-attachments/assets/1e6725c7-f798-4731-ad29-c3249849a1c9" />
+
+
+
 
 ---
 

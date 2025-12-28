@@ -2,35 +2,35 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
-const connectDB = require('./config/db'); // Import file db.js vừa tạo
-const orderRoutes = require('./routes/orderRoutes'); // Import Order Routes
-const userRoutes = require('./routes/userRoutes'); // Import User Routes
+const connectDB = require('./config/db');
 
-// (Import Routes) ---
+// --- Import Routes ---
 const productRoutes = require('./routes/productRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+const userRoutes = require('./routes/userRoutes'); // Đã import ở đây
 
-// 1. Config
 dotenv.config();
 const app = express();
 
-// 2. Connect Database
+// Kết nối DB
 connectDB();
 
-// 3. Middlewares
+// Middlewares
 app.use(cors());
 app.use(express.json());
 
-// (Use Routes) ---
-app.use('/api/products', productRoutes);
-
-// (Use Order Routes) ---
+// --- CẤU HÌNH ĐƯỜNG DẪN (QUAN TRỌNG) ---
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/users', userRoutes);
 
-// 4. Test Route
+// Test Route
 app.get('/', (req, res) => {
   res.send('API is running...');
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
+app.listen(PORT, () => {
+    console.log(`🚀 Server running at: http://localhost:${PORT}`);
+});

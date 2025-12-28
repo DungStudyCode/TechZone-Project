@@ -1,32 +1,74 @@
 // server/models/Product.js
 const mongoose = require('mongoose');
 
-const productSchema = new mongoose.Schema({
-  name: { type: String, required: true }, // Tên: iPhone 15 Pro Max
-  slug: { type: String, required: true, unique: true }, // URL: iphone-15-pro-max
-  brand: { type: String, required: true }, // Apple
-  image: { type: String, required: true }, // Ảnh đại diện
-  description: { type: String },
-  
-  // Thông số kỹ thuật (Quan trọng cho đồ điện tử)
-  specs: {
-    screen: String, // "6.7 inch"
-    chip: String,   // "A17 Pro"
-    ram: String,    // "8GB"
-    battery: String // "4422 mAh"
+const productSchema = mongoose.Schema(
+  {
+    // --- 1. THÔNG TIN CƠ BẢN (Bắt buộc) ---
+    name: { 
+      type: String, 
+      required: true 
+    },
+    slug: { 
+      type: String, 
+      required: true, 
+      unique: true 
+    },
+    image: { 
+      type: String, 
+      required: true 
+    },
+    brand: { 
+      type: String, 
+      required: true 
+    },
+    category: { 
+      type: String, 
+      required: true 
+    },
+    description: { 
+      type: String, 
+      required: true 
+    },
+
+    // --- 2. GIÁ VÀ KHO (QUAN TRỌNG ĐỂ KHÔNG BỊ LỖI NaN) ---
+    // Chúng ta phải để price ở ngoài cùng để Frontend dễ lấy dữ liệu
+    price: { 
+      type: Number, 
+      required: true, 
+      default: 0 
+    },
+    countInStock: { 
+      type: Number, 
+      required: true, 
+      default: 0 
+    },
+
+    // --- 3. THÔNG SỐ KỸ THUẬT (MỞ RỘNG) ---
+    // Phần này optional (không required) để tránh lỗi khi thêm sản phẩm đơn giản
+    specs: {
+      screen: { type: String, default: "" }, // VD: 6.7 inch
+      chip: { type: String, default: "" },   // VD: A17 Pro
+      ram: { type: String, default: "" },    // VD: 8GB
+      battery: { type: String, default: "" } // VD: 4422 mAh
+    },
+
+    // --- 4. ĐÁNH GIÁ (REVIEW) - Chuẩn bị cho chức năng Comment sau này ---
+    rating: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    numReviews: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
   },
+  {
+    timestamps: true, // Tự động tạo createdAt, updatedAt
+  }
+);
 
-  // Biến thể (Màu sắc & Giá tiền khác nhau)
-  variants: [
-    {
-      sku: String,      // Mã kho: IP15PM-256-NAT
-      storage: String,  // "256GB"
-      color: String,    // "Titan Tự Nhiên"
-      price: Number,    // 29990000
-      stock: Number,    // 50
-      image: String     // Ảnh riêng của màu này
-    }
-  ]
-}, { timestamps: true });
+const Product = mongoose.model('Product', productSchema);
 
-module.exports = mongoose.model('Product', productSchema);
+module.exports = Product;

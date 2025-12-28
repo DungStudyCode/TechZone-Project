@@ -1,75 +1,75 @@
 // client/src/contexts/CartContext.jsx
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
-  // Lấy giỏ hàng từ LocalStorage nếu có (để F5 không mất)
+  // 1. Khởi tạo giỏ hàng từ LocalStorage
   const [cartItems, setCartItems] = useState(() => {
     const savedCart = localStorage.getItem('cartItems');
     return savedCart ? JSON.parse(savedCart) : [];
   });
 
-  // Lưu vào LocalStorage mỗi khi giỏ hàng thay đổi
+  // 2. Tự động lưu vào LocalStorage mỗi khi giỏ hàng thay đổi
   useEffect(() => {
     localStorage.setItem('cartItems', JSON.stringify(cartItems));
   }, [cartItems]);
 
-  // Hàm thêm vào giỏ
-  const addToCart = (product, variant, quantity = 1) => {
-    setCartItems((prev) => {
-      // Kiểm tra xem sản phẩm với biến thể này (SKU) đã có trong giỏ chưa
-      const existingItem = prev.find((item) => item.sku === variant.sku);
+  // --- HÀM THÊM VÀO GIỎ ---
+  const addToCart = (product, qty = 1) => {
+    setCartItems((prevItems) => {
+      // Kiểm tra xem sản phẩm đã có trong giỏ chưa
+      const existItem = prevItems.find((item) => item._id === product._id);
 
-      if (existingItem) {
-        // Nếu có rồi thì tăng số lượng
-        return prev.map((item) =>
-          item.sku === variant.sku
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
+      if (existItem) {
+        // Nếu có rồi -> Cộng dồn số lượng
+        return prevItems.map((item) =>
+          item._id === product._id ? { ...item, qty: item.qty + qty } : item
         );
       } else {
-        // Nếu chưa thì thêm mới
+        // Nếu chưa -> Thêm mới (Chỉ lấy các trường cần thiết để nhẹ bộ nhớ)
         return [
-          ...prev,
+          ...prevItems,
           {
-            ...variant, // Lưu thông tin biến thể (giá, màu, sku)
-            productName: product.name,
-            productSlug: product.slug,
-            productImage: product.image, // Ảnh gốc fallback
-            quantity,
+            _id: product._id,
+            name: product.name,
+            image: product.image,       // <-- QUAN TRỌNG: Lấy đúng trường image
+            price: product.price,       // <-- QUAN TRỌNG: Lấy đúng trường price
+            slug: product.slug,
+            brand: product.brand,
+            countInStock: product.countInStock,
+            qty: qty,
           },
         ];
       }
     });
   };
 
-  // Hàm xóa khỏi giỏ
-  const removeFromCart = (sku) => {
-    setCartItems((prev) => prev.filter((item) => item.sku !== sku));
+  // --- HÀM XÓA KHỎI GIỎ ---
+  const removeFromCart = (id) => {
+    setCartItems((prevItems) => prevItems.filter((item) => item._id !== id));
   };
 
-  // Hàm cập nhật số lượng
-  const updateQuantity = (sku, num) => {
-    setCartItems((prev) =>
-      prev.map((item) =>
-        item.sku === sku ? { ...item, quantity: Math.max(1, num) } : item
+  // --- HÀM CẬP NHẬT SỐ LƯỢNG ---
+  const updateCartQty = (id, qty) => {
+    setCartItems((prevItems) =>
+      prevItems.map((item) =>
+        item._id === id ? { ...item, qty: Math.max(1, qty) } : item
       )
     );
   };
 
+  // --- HÀM XÓA SẠCH GIỎ (Dùng sau khi thanh toán) ---
   const clearCart = () => {
-    setCartItems([]); // Xóa sạch state
-    localStorage.removeItem('cartItems'); // Xóa sạch local storage
+    setCartItems([]);
+    localStorage.removeItem('cartItems');
   };
 
-
   return (
-    <CartContext.Provider value={{ cartItems, addToCart, removeFromCart, updateQuantity, clearCart }}>
+    <CartContext.Provider value={{ cartItems, addToCart, removeFromCart, updateCartQty, clearCart }}>
       {children}
     </CartContext.Provider>
   );
 };
 
-// Hook để dùng nhanh ở các component khác
 export const useCart = () => useContext(CartContext);

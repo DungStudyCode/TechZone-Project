@@ -1,12 +1,15 @@
-// server/routes/productRoutes.js
 const express = require('express');
 const router = express.Router();
-const { getProducts, getProductBySlug } = require('../controllers/productController');
+// Import thêm updateProduct
+const { getProducts, getProductBySlug, deleteProduct, createProduct, updateProduct } = require('../controllers/productController');
+const { protect, admin } = require('../middleware/authMiddleware');
 
-// Đường dẫn gốc: /api/products
 router.get('/', getProducts);
-
-// Đường dẫn chi tiết: /api/products/iphone-15-pro-max
 router.get('/:slug', getProductBySlug);
+router.delete('/:id', protect, admin, deleteProduct);
+router.post('/', protect, admin, createProduct);
+
+// Route cập nhật (Chỉ Admin)
+router.put('/:id', protect, admin, updateProduct);
 
 module.exports = router;

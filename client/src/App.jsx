@@ -1,30 +1,90 @@
 // client/src/App.jsx
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Navbar from './components/Navbar'; // Navbar có thể thêm sau
-import Home from './pages/Home/Home';
-import ProductDetail from './pages/Product/ProductDetail'; // Import trang chi tiết sản phẩm
-import Cart from './pages/Cart/Cart'; // Import trang giỏ hàng
-import Checkout from './pages/Cart/Checkout'; // Import trang thanh toán
-import AdminOrders from './pages/Admin/AdminOrders';// Import trang quản lý đơn hàng
-import Login from './pages/Auth/Login'; // Import trang đăng nhập
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Navbar from "./components/Navbar";
+import Home from "./pages/Home/Home";
+import ProductDetail from "./pages/Product/ProductDetail";
+import Cart from "./pages/Cart/Cart";
+import Checkout from "./pages/Cart/Checkout";
+import Login from "./pages/Auth/Login";
+import Register from "./pages/Auth/Register";
+import Profile from "./pages/Auth/Profile";
+import About from "./pages/Home/About";
+import Contact from "./pages/Home/Contact";
+import Policy from "./pages/Home/Policy";
+import Footer from "./components/Footer";
+import AdminRoute from "./components/AdminRoute"; 
+
+// --- 1. THÊM IMPORT NÀY (BẮT BUỘC) ---
+import Products from "./pages/Product/Products";
+
+// --- CÁC COMPONENT ADMIN ---
+import AdminOrders from "./pages/Admin/AdminOrders";
+import AdminProducts from "./pages/Admin/AdminProducts";
+import AdminProductForm from "./pages/Admin/AdminProductForm";
 
 
 function App() {
   return (
     <BrowserRouter>
-      <div className="bg-gray-100 min-h-screen pb-10 font-sans">
+      <div className="bg-gray-100 min-h-screen flex flex-col font-sans">
+        <Navbar />
         
-        <Navbar /> {/* <-- Navbar luôn hiển thị */}
+        <div className="flex-1">
+          <Routes>
+            {/* --- CÁC TRANG CÔNG KHAI --- */}
+            <Route path="/" element={<Home />} />
+            
+            {/* --- 2. THÊM ROUTE NÀY VÀO ĐÂY --- */}
+            {/* Khi đường dẫn là /products thì hiển thị trang Products */}
+            <Route path="/products" element={<Products />} />
 
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/product/:slug" element={<ProductDetail />} />
-          <Route path="/cart" element={<Cart />} /> {/* <-- Route mới */}
-          <Route path="/checkout" element={<Checkout />} />
-          <Route path="/admin/orders" element={<AdminOrders />} />
-          <Route path="/login" element={<Login />} />
-        </Routes>
-        
+            <Route path="/product/:slug" element={<ProductDetail />} />
+            <Route path="/cart" element={<Cart />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/policy" element={<Policy />} />
+
+            {/* --- CÁC TRANG ADMIN --- */}
+            <Route
+              path="/admin/orders"
+              element={
+                <AdminRoute>
+                  <AdminOrders />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/products"
+              element={
+                <AdminRoute>
+                  <AdminProducts />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/product/new"
+              element={
+                <AdminRoute>
+                  <AdminProductForm />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/product/:id/edit"
+              element={
+                <AdminRoute>
+                  <AdminProductForm />
+                </AdminRoute>
+              }
+            />
+          </Routes>
+        </div>
+
+        <Footer />
       </div>
     </BrowserRouter>
   );

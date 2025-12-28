@@ -18,7 +18,7 @@
 ## 🔗 Live Demo (Dùng thử)
 
 Trải nghiệm dự án tại đây:
-- **🏠 Frontend (Giao diện):** [https://techzone-project.vercel.app](https://techzone-project.vercel.app)
+- **🏠 Frontend (Giao diện):** [https://techzone-project.vercel.app](https://tech-zone-project.vercel.app)
 - **⚙️ Backend (API):** [https://techzone-project.onrender.com](https://techzone-project.onrender.com)
 
 ---

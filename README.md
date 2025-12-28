@@ -102,25 +102,25 @@ npm run dev
 
 # Website sẽ chạy tại: http://localhost:5173
 📂 Cấu trúc thư mục (Folder Structure)
-TechZone-Project/
-├── client/                 # Mã nguồn Frontend (ReactJS)
-│   ├── public/             # Tài nguyên tĩnh
-│   ├── src/
-│   │   ├── components/     # Các thành phần tái sử dụng (Header, Footer...)
-│   │   ├── pages/          # Các trang chính (Home, Product, Cart...)
-│   │   ├── services/       # Cấu hình gọi API (Axios)
-│   │   └── App.jsx
-│   └── package.json
-│
-├── server/                 # Mã nguồn Backend (NodeJS)
-│   ├── config/             # Cấu hình DB
-│   ├── controllers/        # Xử lý logic
-│   ├── models/             # Định nghĩa Schema MongoDB
-│   ├── routes/             # Định nghĩa API Routes
-│   ├── index.js            # File chạy chính
-│   └── package.json
-│
-└── README.md
+        TechZone-Project/
+        ├── client/                 # Mã nguồn Frontend (ReactJS)
+        │   ├── public/             # Tài nguyên tĩnh
+        │   ├── src/
+        │   │   ├── components/     # Các thành phần tái sử dụng (Header, Footer...)
+        │   │   ├── pages/          # Các trang chính (Home, Product, Cart...)
+        │   │   ├── services/       # Cấu hình gọi API (Axios)
+        │   │   └── App.jsx
+        │   └── package.json
+        │
+        ├── server/                 # Mã nguồn Backend (NodeJS)
+        │   ├── config/             # Cấu hình DB
+        │   ├── controllers/        # Xử lý logic
+        │   ├── models/             # Định nghĩa Schema MongoDB
+        │   ├── routes/             # Định nghĩa API Routes
+        │   ├── index.js            # File chạy chính
+        │   └── package.json
+        │
+        └── README.md
 
 👨‍💻 Tác giả (Author)
 DungStudyCode

@@ -101,7 +101,9 @@ Chạy Client:
 npm run dev
 
 # Website sẽ chạy tại: http://localhost:5173
+
 📂 Cấu trúc thư mục (Folder Structure)
+
         TechZone-Project/
         ├── client/                 # Mã nguồn Frontend (ReactJS)
         │   ├── public/             # Tài nguyên tĩnh

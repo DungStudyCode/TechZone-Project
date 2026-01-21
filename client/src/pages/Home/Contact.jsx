@@ -36,7 +36,7 @@ const Contact = () => {
                   <FaMapMarkerAlt className="mt-1 text-purple-400 text-xl" />
                   <div>
                     <h4 className="font-bold">Địa chỉ</h4>
-                    <p className="text-sm opacity-80">31/20 Phạm Quang Ảnh, Quận Sơn Trà, TP-Đà Nẵng</p>
+                    <p className="text-sm opacity-80">Quận Sơn Trà, TP-Đà Nẵng</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">

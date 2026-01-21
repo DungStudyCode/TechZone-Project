@@ -6,6 +6,8 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   isAdmin: { type: Boolean, default: false }, // Phân biệt Admin và Khách
+  loyaltyScore: { type: Number, default: 0 }, // Điểm thân thiết (tăng khi mua hàng)
+  customerSegment: { type: String, default: 'New' }, // Ví dụ: New, Potential, VIP, AtRisk
 }, { timestamps: true });
 
 // Hàm này chạy trước khi lưu User vào DB để mã hóa mật khẩu

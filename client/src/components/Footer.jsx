@@ -51,7 +51,7 @@ const Footer = () => {
           <ul className="space-y-3 text-sm">
              <li className="flex items-start gap-3">
                 <FaMapMarkerAlt className="mt-1 text-purple-500"/>
-                <span>31/20 Phạm Quang Ảnh, Quận Sơn Trà, TP-Đà Nẵng</span>
+                <span>Quận Sơn Trà, TP-Đà Nẵng</span>
              </li>
              <li className="flex items-center gap-3">
                 <FaPhoneAlt className="text-purple-500"/>

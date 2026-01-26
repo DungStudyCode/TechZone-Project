@@ -22,7 +22,7 @@ import Products from "./pages/Product/Products";
 import AdminOrders from "./pages/Admin/AdminOrders";
 import AdminProducts from "./pages/Admin/AdminProducts";
 import AdminProductForm from "./pages/Admin/AdminProductForm";
-import AIInsights from "./pages/admin/AIInsights";
+import AIInsights from "./pages/Admin/AIInsights";
 
 function App() {
   return (

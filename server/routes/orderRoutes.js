@@ -1,10 +1,27 @@
 // server/routes/orderRoutes.js
 const express = require('express');
 const router = express.Router();
-const { createOrder, getAllOrders, getMyOrders, updateOrderStatus } = require('../controllers/orderController');
+
+// 1. Import thêm 'getDashboardStats' từ controller
+const { 
+  createOrder, 
+  getAllOrders, 
+  getMyOrders, 
+  updateOrderStatus,
+  getDashboardStats // <--- Thêm cái này
+} = require('../controllers/orderController');
+
 const { protect, admin } = require('../middleware/authMiddleware');
 
-// Route tạo đơn hàng (BẮT BUỘC PHẢI CÓ 'protect' để lấy ID user)
+// ==================================================
+// ✅ ROUTE THỐNG KÊ DASHBOARD (Đặt lên đầu tiên)
+// ==================================================
+router.get('/dashboard-stats', protect, admin, getDashboardStats);
+
+
+// --- CÁC ROUTE CŨ (Giữ nguyên) ---
+
+// Route tạo đơn hàng
 router.post('/', protect, createOrder); 
 
 // Route Admin xem toàn bộ

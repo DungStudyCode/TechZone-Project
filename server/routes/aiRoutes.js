@@ -1,15 +1,20 @@
+// server/routes/aiRoutes.js
 const express = require('express');
 const router = express.Router();
 
-// Import Controller xử lý logic (file mà chúng ta đã viết code RAG tìm sản phẩm)
-// Lưu ý: Kiểm tra kỹ tên file controller của bạn là 'aiClientController.js' hay 'aiController.js'
-const aiController = require('../controllers/aiClientController'); 
+// Import Controller
+const { chatWithAI } = require('../controllers/aiClientController'); // Chatbot cũ
+const { analyzeCustomerSentiment, analyzeBusinessStrategy } = require('../controllers/aiAdminController'); // Admin mới
 
-// --- ĐỊNH NGHĨA ROUTE ---
+// Import Middleware bảo vệ
+const { protect, admin } = require('../middleware/authMiddleware');
 
-// Frontend gọi: POST /api/ai/client/chat
-// Server.js đã lo phần: /api/ai
-// Tại đây ta chỉ cần hứng phần đuôi: /client/chat
-router.post('/client/chat', aiController.chatWithAI);
+// --- ROUTE CHO KHÁCH (Chatbot) ---
+router.post('/client/chat', chatWithAI);
+
+// --- ROUTE CHO ADMIN (AI Phân tích) ---
+// Yêu cầu: Đăng nhập + Là Admin
+router.post('/admin/analyze-customer', protect, admin, analyzeCustomerSentiment);
+router.post('/admin/analyze-strategy', protect, admin, analyzeBusinessStrategy);
 
 module.exports = router;

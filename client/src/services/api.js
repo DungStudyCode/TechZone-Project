@@ -2,7 +2,8 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://techzone-project.onrender.com/api',
+  // Vite sẽ tự động chọn link dựa trên môi trường đang chạy
+  baseURL: import.meta.env.VITE_API_URL, 
 });
 
 // --- KIỂM TRA ĐOẠN NÀY ---

@@ -1,70 +1,90 @@
 // server/controllers/aiAdminController.js
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const Order = require('../models/Order');
-const Product = require('../models/Product'); // Giả sử bạn có model Review, nếu review nằm trong Product thì cần điều chỉnh
-const Review = require('../models/Review'); 
+const Product = require('../models/Product');
+require('dotenv').config();
 
-// Khởi tạo Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// ==========================================
-// TÍNH NĂNG 1: PHÂN TÍCH ĐÁNH GIÁ & GIỮ CHÂN KHÁCH
-// ==========================================
+// Dùng model gemini-pro cho ổn định
+const model = genAI.getGenerativeModel({ 
+  model: "gemini-2.5-flash",
+  safetySettings: [
+    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+  ]
+});
+
+// --- TÍNH NĂNG 1: PHÂN TÍCH KHÁCH HÀNG (ĐÃ SỬA PROMPT) ---
 exports.analyzeCustomerSentiment = async (req, res) => {
   try {
-    // 1. Lấy 50 đánh giá gần nhất, kèm thông tin user để biết ai đang khen/chê
-    const reviews = await Review.find({})
-      .sort({ createdAt: -1 })
-      .limit(50)
-      .populate('user', 'name email loyaltyScore'); // Lấy tên, email và điểm thân thiết
+    const reviews = await Product.aggregate([
+      { $unwind: { path: "$reviews", preserveNullAndEmptyArrays: false } },
+      { $sort: { "reviews.createdAt": -1 } },
+      { $limit: 30 },
+      {
+        $project: {
+          _id: 0,
+          rating: "$reviews.rating",
+          comment: "$reviews.comment",
+          productName: "$name"
+        }
+      }
+    ]);
 
     if (!reviews || reviews.length === 0) {
-      return res.status(400).json({ message: "Chưa có dữ liệu đánh giá để phân tích." });
+      return res.json({ analysis: "⚠️ Chưa có đủ dữ liệu đánh giá để phân tích." });
     }
 
-    // 2. Chế biến dữ liệu thô thành văn bản cho AI đọc
-    const reviewsText = reviews.map((r, index) => 
-      `#${index+1}. [Khách: ${r.user?.name || 'Ẩn danh'} - Email: ${r.user?.email || 'N/A'}] chấm ${r.rating} sao. Nội dung: "${r.comment}"`
+    const reviewsText = reviews.map(r => 
+      `- "${r.comment}" (${r.rating} sao) cho món ${r.productName}`
     ).join('\n');
 
-    // 3. Viết System Prompt chuyên sâu cho CSKH
+    // 👇 PROMPT MỚI: Yêu cầu không dùng dấu *, trình bày rõ ràng
     const prompt = `
-      Bạn là Giám đốc Trải nghiệm Khách hàng (CXO) của TechZone.
-      Nhiệm vụ: Phân tích danh sách 50 đánh giá gần nhất dưới đây để đưa ra giải pháp giữ chân khách hàng.
-
-      DỮ LIỆU ĐẦU VÀO:
+      Bạn là Giám đốc CSKH. Hãy phân tích danh sách đánh giá sau:
       ${reviewsText}
 
-      YÊU CẦU ĐẦU RA (Định dạng Markdown bắt buộc):
-      1. **Tổng quan Cảm xúc**: Tỉ lệ % Tích cực/Tiêu cực. Vấn đề gì đang bị phàn nàn nhiều nhất (Ship hàng chậm, Hàng lỗi, Thái độ...)?
-      2. **🚨 BÁO ĐỘNG ĐỎ (Khách hàng rủi ro)**: Liệt kê danh sách khách hàng đánh giá 1-2 sao. Với từng người, hãy đề xuất hành động cụ thể (Ví dụ: "Gửi mã giảm giá 50k", "Gọi điện xin lỗi").
-      3. **💎 KHÁCH HÀNG KIM CƯƠNG (VIP)**: Liệt kê những khách khen ngợi nhiệt tình. Đề xuất cách thưởng cho họ (Ví dụ: "Nâng hạng thành viên", "Tặng quà tri ân").
-      4. **Đề xuất cải thiện quy trình**: Dựa trên các phàn nàn, TechZone cần thay đổi quy trình vận hành nào ngay lập tức?
-    `;
+      YÊU CẦU ĐỊNH DẠNG (BẮT BUỘC):
+      1. Tuyệt đối KHÔNG dùng ký tự ** hay ## hay *. 
+      2. Dùng chữ IN HOA để làm tiêu đề các mục.
+      3. Dùng dấu gạch ngang (-) để liệt kê ý.
+      4. Trình bày ngắn gọn, súc tích, chia đoạn rõ ràng.
 
-    // 4. Gọi AI
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    const result = await model.generateContent(prompt);
+      CẤU TRÚC TRẢ LỜI:
+      TỔNG QUAN CẢM XÚC:
+      (Tóm tắt tình hình chung)
+
+      ĐIỂM KHÁCH HÀNG KHEN:
+      - (Liệt kê...)
+
+      VẤN ĐỀ CẦN KHẮC PHỤC:
+      - (Liệt kê...)
+
+      GỢI Ý HÀNH ĐỘNG:
+      - (Đề xuất...)
+    `;
     
+    const result = await model.generateContent(prompt);
     res.json({ analysis: result.response.text() });
 
   } catch (error) {
-    console.error("AI Review Analysis Error:", error);
-    res.status(500).json({ error: "Lỗi khi phân tích đánh giá." });
+    console.error("LỖI CHI TIẾT (Customer):", error);
+    res.status(500).json({ message: "Lỗi Server: " + error.message });
   }
 };
 
-// ==========================================
-// TÍNH NĂNG 2: TƯ VẤN CHIẾN LƯỢC KINH DOANH
-// ==========================================
+// --- TÍNH NĂNG 2: CHIẾN LƯỢC KINH DOANH (ĐÃ SỬA PROMPT) ---
 exports.analyzeBusinessStrategy = async (req, res) => {
   try {
-    // 1. Dùng Aggregation Pipeline để tính toán số liệu trước (Rất quan trọng để tối ưu hiệu năng)
-    const salesData = await Order.aggregate([
-      { $match: { isPaid: true } }, // Chỉ lấy đơn đã thanh toán
-      { $unwind: "$orderItems" },   // Tách các món hàng trong đơn ra
+    // Lấy doanh thu (nếu không có đơn paid thì lấy tất cả đơn để test)
+    let salesData = await Order.aggregate([
+      { $match: { isPaid: true } }, 
+      { $unwind: "$orderItems" },
       {
-        $lookup: {                  // Join với bảng Products để lấy Brand/Category
+        $lookup: {
           from: "products",
           localField: "orderItems.product",
           foreignField: "_id",
@@ -73,53 +93,67 @@ exports.analyzeBusinessStrategy = async (req, res) => {
       },
       { $unwind: "$productInfo" },
       {
-        $group: {                   // Gom nhóm theo Category và Brand
-          _id: { 
-            category: "$productInfo.category", 
-            brand: "$productInfo.brand" 
-          },
-          totalQtySold: { $sum: "$orderItems.qty" }, // Tổng số lượng bán
-          totalRevenue: { $sum: { $multiply: ["$orderItems.price", "$orderItems.qty"] } } // Tổng doanh thu
+        $group: {
+          _id: "$productInfo.category",
+          revenue: { $sum: { $multiply: ["$orderItems.price", "$orderItems.qty"] } },
+          count: { $sum: "$orderItems.qty" }
         }
-      },
-      { $sort: { totalRevenue: -1 } } // Sắp xếp doanh thu giảm dần
+      }
     ]);
 
-    // 2. Chuyển dữ liệu JSON sang chuỗi text
-    const dataString = salesData.map(item => 
-      `- Danh mục: ${item._id.category} | Hãng: ${item._id.brand} | Bán được: ${item.totalQtySold} cái | Doanh thu: ${item.totalRevenue.toLocaleString()} VNĐ`
-    ).join('\n');
+    // Fallback: Nếu không có đơn đã thanh toán, lấy thử đơn chưa thanh toán để demo
+    if (salesData.length === 0) {
+        salesData = await Order.aggregate([
+            { $unwind: "$orderItems" },
+            {
+              $lookup: { from: "products", localField: "orderItems.product", foreignField: "_id", as: "productInfo" }
+            },
+            { $unwind: "$productInfo" },
+            {
+              $group: {
+                _id: "$productInfo.category",
+                revenue: { $sum: { $multiply: ["$orderItems.price", "$orderItems.qty"] } },
+                count: { $sum: "$orderItems.qty" }
+              }
+            }
+          ]);
+    }
 
-    // 3. Viết System Prompt cho Chuyên gia kinh tế
+    if (salesData.length === 0) {
+       return res.json({ analysis: "⚠️ Chưa có dữ liệu đơn hàng nào để phân tích." });
+    }
+
+    const reportText = salesData.map(i => `- Danh mục ${i._id}: Bán ${i.count}, Thu ${i.revenue.toLocaleString()}đ`).join('\n');
+
+    // 👇 PROMPT MỚI: Rõ ràng, không Markdown rác
     const prompt = `
-      Bạn là Cố vấn Chiến lược Kinh doanh cấp cao của TechZone. 
-      Dưới đây là báo cáo doanh thu thực tế theo Danh mục và Thương hiệu:
+      Dữ liệu kinh doanh:
+      ${reportText}
 
-      ${dataString}
+      YÊU CẦU ĐỊNH DẠNG:
+      - KHÔNG dùng ký tự ** hay ##.
+      - Dùng chữ IN HOA cho tiêu đề.
+      - Gạch đầu dòng (-) cho các ý.
 
-      HÃY PHÂN TÍCH VÀ TRẢ LỜI CÁC CÂU HỎI SAU (Định dạng Markdown):
-      
-      ### 1. 🏆 Ngôi sao doanh thu
-      Mặt hàng/Thương hiệu nào đang là "con gà đẻ trứng vàng"? Tại sao (dựa trên tỷ lệ số lượng/doanh thu)?
+      HÃY TRẢ LỜI THEO CẤU TRÚC:
+      1. NHẬN XÉT DOANH THU:
+      (Phân tích ngắn gọn)
 
-      ### 2. 📉 Hàng tồn kho/Kém hiệu quả
-      Nhóm sản phẩm nào doanh số quá thấp? Có nên tiếp tục nhập hàng hay xả kho cắt lỗ?
+      2. MẶT HÀNG CHỦ LỰC:
+      (Nêu tên danh mục bán tốt nhất)
 
-      ### 3. 🔮 Dự đoán & Nhập hàng
-      Dựa trên xu hướng trên, tháng tới TechZone nên tập trung vốn nhập loại hàng nào (Ví dụ: Nếu Apple bán chạy, hãy đề xuất nhập thêm phụ kiện Apple)?
-      
-      ### 4. 💡 Chiến lược Marketing
-      Đề xuất 1 chiến dịch khuyến mãi cụ thể đánh vào nhóm sản phẩm tiềm năng (Ví dụ: "Mua Laptop Dell tặng Chuột Logitech" nếu 2 hãng này có liên quan).
+      3. ĐỀ XUẤT NHẬP HÀNG:
+      (Nên nhập gì thêm?)
+
+      4. CHIẾN LƯỢC KHUYẾN MÃI:
+      (Gợi ý 1 combo bán hàng cụ thể)
     `;
 
-    // 4. Gọi AI
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     const result = await model.generateContent(prompt);
-
     res.json({ analysis: result.response.text() });
 
   } catch (error) {
-    console.error("AI Sales Analysis Error:", error);
-    res.status(500).json({ error: "Lỗi khi phân tích chiến lược." });
+    console.error("LỖI CHI TIẾT (Strategy):", error);
+    res.status(500).json({ message: "Lỗi xử lý: " + error.message });
   }
 };

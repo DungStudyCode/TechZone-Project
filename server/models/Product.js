@@ -1,6 +1,23 @@
 // server/models/Product.js
 const mongoose = require('mongoose');
 
+// --- 0. TẠO SCHEMA RIÊNG CHO REVIEW (Thêm mới) ---
+const reviewSchema = mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    rating: { type: Number, required: true },
+    comment: { type: String, required: true },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: 'User', // Liên kết với bảng User để biết ai bình luận
+    },
+  },
+  {
+    timestamps: true, // Để hiện ngày giờ bình luận
+  }
+);
+
 const productSchema = mongoose.Schema(
   {
     // --- 1. THÔNG TIN CƠ BẢN (Bắt buộc) ---
@@ -30,8 +47,7 @@ const productSchema = mongoose.Schema(
       required: true 
     },
 
-    // --- 2. GIÁ VÀ KHO (QUAN TRỌNG ĐỂ KHÔNG BỊ LỖI NaN) ---
-    // Chúng ta phải để price ở ngoài cùng để Frontend dễ lấy dữ liệu
+    // --- 2. GIÁ VÀ KHO ---
     price: { 
       type: Number, 
       required: true, 
@@ -44,15 +60,17 @@ const productSchema = mongoose.Schema(
     },
 
     // --- 3. THÔNG SỐ KỸ THUẬT (MỞ RỘNG) ---
-    // Phần này optional (không required) để tránh lỗi khi thêm sản phẩm đơn giản
     specs: {
-      screen: { type: String, default: "" }, // VD: 6.7 inch
-      chip: { type: String, default: "" },   // VD: A17 Pro
-      ram: { type: String, default: "" },    // VD: 8GB
-      battery: { type: String, default: "" } // VD: 4422 mAh
+      screen: { type: String, default: "" }, 
+      chip: { type: String, default: "" },   
+      ram: { type: String, default: "" },    
+      battery: { type: String, default: "" } 
     },
 
-    // --- 4. ĐÁNH GIÁ (REVIEW) - Chuẩn bị cho chức năng Comment sau này ---
+    // --- 4. ĐÁNH GIÁ (REVIEW) - ĐÃ SỬA ---
+    // Đây là phần quan trọng bạn đang thiếu
+    reviews: [reviewSchema], 
+
     rating: {
       type: Number,
       required: true,
@@ -65,7 +83,7 @@ const productSchema = mongoose.Schema(
     },
   },
   {
-    timestamps: true, // Tự động tạo createdAt, updatedAt
+    timestamps: true,
   }
 );
 

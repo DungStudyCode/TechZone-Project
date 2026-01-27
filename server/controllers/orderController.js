@@ -1,6 +1,7 @@
 // server/controllers/orderController.js
 const Order = require('../models/Order');
-
+const User = require('../models/User');
+const Product = require('../models/Product');
 // POST /api/orders
 const createOrder = async (req, res) => {
   try {
@@ -81,4 +82,76 @@ const updateOrderStatus = async (req, res) => {
   }
 };
 
-module.exports = { createOrder, getAllOrders, getMyOrders, updateOrderStatus };
+// ✅ TÍNH NĂNG MỚI: Lấy thống kê cho Dashboard
+// GET /api/orders/dashboard-stats
+const getDashboardStats = async (req, res) => {
+  try {
+    // Lấy năm hiện tại (Ví dụ: 2026)
+    const currentYear = new Date().getFullYear();
+    
+    // Tạo mốc thời gian đầu năm và cuối năm
+    const startOfYear = new Date(`${currentYear}-01-01T00:00:00.000Z`);
+    const endOfYear = new Date(`${currentYear}-12-31T23:59:59.999Z`);
+
+    // 1. Tính Tổng Doanh Thu (Chỉ tính đơn ĐÃ THANH TOÁN)
+    const totalRevenue = await Order.aggregate([
+      { $match: { isPaid: true } },
+      { $group: { _id: null, total: { $sum: '$totalPrice' } } },
+    ]);
+
+    // 2. Các chỉ số phụ
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const ordersToday = await Order.countDocuments({ createdAt: { $gte: today } });
+    const totalOrders = await Order.countDocuments();
+    const totalProducts = await Product.countDocuments();
+    const totalUsers = await User.countDocuments();
+
+    // 3. Lấy dữ liệu biểu đồ (CHỈ LẤY NĂM NAY)
+    const monthlySales = await Order.aggregate([
+      { 
+        $match: { 
+          isPaid: true,  // Quan trọng: Phải đã thanh toán
+          createdAt: { $gte: startOfYear, $lte: endOfYear } // Quan trọng: Chỉ lấy năm nay
+        } 
+      },
+      {
+        $group: {
+          _id: { $month: '$createdAt' }, 
+          total: { $sum: '$totalPrice' },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // Format dữ liệu cho Frontend (T1 -> T12)
+    const chartData = Array.from({ length: 12 }, (_, i) => {
+      const monthData = monthlySales.find((m) => m._id === i + 1);
+      return {
+        name: `T${i + 1}`,
+        total: monthData ? monthData.total : 0,
+      };
+    });
+
+    // 4. Lấy đơn hàng gần đây
+    const recentOrders = await Order.find()
+      .populate('user', 'name email')
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    res.json({
+      totalRevenue: totalRevenue[0]?.total || 0,
+      ordersToday,
+      totalOrders,
+      totalProducts,
+      totalUsers,
+      chartData,
+      recentOrders,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi thống kê: ' + error.message });
+  }
+};
+
+module.exports = { createOrder, getAllOrders, getMyOrders, updateOrderStatus, getDashboardStats };

@@ -1,156 +1,307 @@
-// client/src/pages/Admin/AdminProductForm.jsx
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import api from '../../services/api';
-import { FaArrowLeft, FaSave } from 'react-icons/fa';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { FaArrowLeft, FaSave, FaCloudUploadAlt, FaImage } from "react-icons/fa";
 
 const AdminProductForm = () => {
-  const [name, setName] = useState('');
-  const [slug, setSlug] = useState('');
-  const [price, setPrice] = useState(0);
-  const [image, setImage] = useState('');
-  const [category, setCategory] = useState('');
-  const [brand, setBrand] = useState('');
-  const [countInStock, setCountInStock] = useState(0);
-  const [description, setDescription] = useState('');
-  
-  // --- STATE MỚI CHO THÔNG SỐ KỸ THUẬT ---
-  const [specs, setSpecs] = useState({
-    screen: '',
-    chip: '',
-    ram: '',
-    battery: ''
-  });
-
-  const [loading, setLoading] = useState(false);
+  const { id } = useParams(); // Lấy ID từ URL (nếu có)
   const navigate = useNavigate();
-  const { id } = useParams(); 
+
+  // Xác định chế độ: Nếu có ID là Sửa, không có là Thêm mới
   const isEditMode = !!id;
 
+  // --- STATE QUẢN LÝ FORM ---
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState(0);
+  const [image, setImage] = useState("");
+  const [category, setCategory] = useState("");
+  const [countInStock, setCountInStock] = useState(0);
+  const [description, setDescription] = useState("");
+  const [discount, setDiscount] = useState(0); // Thêm trường giảm giá nếu cần
+
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  // --- 1. LOAD DỮ LIỆU KHI SỬA ---
   useEffect(() => {
     if (isEditMode) {
       const fetchProduct = async () => {
         try {
-          const { data } = await api.get('/products');
-          const product = data.find(p => p._id === id);
-          if (product) {
-            setName(product.name);
-            setSlug(product.slug);
-            setPrice(product.price);
-            setImage(product.image);
-            setCategory(product.category);
-            setBrand(product.brand || '');
-            setCountInStock(product.countInStock);
-            setDescription(product.description);
-            // Load thông số cũ (nếu có)
-            if (product.specs) setSpecs(product.specs);
-          }
-        } catch (error) {
-          console.error("Lỗi:", error);
+          setLoading(true);
+          const { data } = await axios.get(`http://localhost:5000/api/products/${id}`);
+          // Đổ dữ liệu vào form
+          setName(data.name);
+          setPrice(data.price);
+          setImage(data.image);
+          setCategory(data.category);
+          setCountInStock(data.countInStock);
+          setDescription(data.description);
+          setDiscount(data.discount || 0);
+          setLoading(false);
+        } catch (err) {
+          console.error(err); // <--- THÊM DÒNG NÀY (Để biến err được sử dụng)
+          setError("Không tìm thấy sản phẩm hoặc lỗi kết nối.");
+          setLoading(false);
         }
       };
       fetchProduct();
     }
   }, [id, isEditMode]);
 
-  const handleNameChange = (e) => {
-    const val = e.target.value;
-    setName(val);
-    if (!isEditMode) {
-      const generatedSlug = val.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ /g, '-');
-      setSlug(generatedSlug);
+  // --- 2. XỬ LÝ UPLOAD ẢNH (Nếu backend có hỗ trợ upload) ---
+  const uploadFileHandler = async (e) => {
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append("image", file);
+    setUploading(true);
+
+    try {
+      const config = { headers: { "Content-Type": "multipart/form-data" } };
+      // Gọi API Upload (Bạn cần đảm bảo Backend có route này, nếu chưa thì nhập link tay)
+      const { data } = await axios.post("http://localhost:5000/api/upload", formData, config);
+      
+      setImage(data); // Backend trả về đường dẫn ảnh
+      setUploading(false);
+    } catch (error) {
+      console.error(error);
+      setUploading(false);
+      // Nếu lỗi upload, nhắc người dùng nhập link
+      alert("Chưa cấu hình API Upload. Vui lòng nhập link ảnh trực tiếp vào ô bên cạnh!");
     }
   };
 
+  // --- 3. XỬ LÝ LƯU (SUBMIT) ---
   const submitHandler = async (e) => {
     e.preventDefault();
     setLoading(true);
+
     try {
-      // Gửi cả specs lên server
-      const productData = { name, slug, price, image, category, brand, countInStock, description, specs };
+      // 1. Lấy Token của Admin từ LocalStorage ra
+      const userInfo = localStorage.getItem("userInfo")
+        ? JSON.parse(localStorage.getItem("userInfo"))
+        : null;
+
+      // 2. Cấu hình Header gửi kèm Token
+      const config = {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${userInfo.token}`, // <--- QUAN TRỌNG: Gửi "thẻ bài" đi
+        },
+      };
+
+      const productData = {
+        name,
+        price,
+        image,
+        category,
+        description,
+        countInStock,
+        discount
+      };
 
       if (isEditMode) {
-        await api.put(`/products/${id}`, productData);
-        alert('Cập nhật thành công!');
+        // Cập nhật (PUT) - Có gửi kèm config
+        await axios.put(`http://localhost:5000/api/products/${id}`, productData, config);
+        alert("Cập nhật thành công!");
       } else {
-        await api.post('/products', productData);
-        alert('Thêm mới thành công!');
+        // Tạo mới (POST) - Có gửi kèm config
+        await axios.post("http://localhost:5000/api/products", productData, config);
+        alert("Thêm mới thành công!");
       }
-      navigate('/admin/products');
-    } catch (error) {
-      alert(error.response?.data?.message || 'Có lỗi xảy ra');
-    } finally {
+      
+      navigate("/admin/products");
+    } catch (err) {
+      console.error(err);
+      // Hiển thị lỗi chi tiết từ Backend nếu có
+      const message = err.response && err.response.data.message 
+        ? err.response.data.message 
+        : "Lỗi khi lưu sản phẩm. Bạn có phải là Admin không?";
+      setError(message);
       setLoading(false);
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <Link to="/admin/products" className="text-gray-500 hover:text-purple-700 flex items-center gap-2 mb-6"><FaArrowLeft /> Quay lại</Link>
-      
-      <div className="bg-white shadow-xl rounded-xl border border-gray-100 overflow-hidden">
-        <div className="bg-purple-50 px-8 py-6 border-b border-purple-100">
-            <h1 className="text-2xl font-bold text-purple-900">{isEditMode ? `Sửa: ${name}` : 'Thêm sản phẩm'}</h1>
+    <div className="max-w-4xl mx-auto">
+      {/* HEADER */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <Link to="/admin/products" className="text-gray-500 hover:text-[#724ae8] flex items-center gap-2 mb-2 transition">
+            <FaArrowLeft /> Quay lại danh sách
+          </Link>
+          <h1 className="text-2xl font-bold text-gray-800">
+            {isEditMode ? `Cập nhật sản phẩm: ${id}` : "Thêm sản phẩm mới"}
+          </h1>
         </div>
+      </div>
 
-        <form onSubmit={submitHandler} className="p-8 space-y-6">
-          {/* Tên & Slug */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div><label className="font-bold block mb-2">Tên sản phẩm</label><input type="text" required className="w-full border rounded p-3" value={name} onChange={handleNameChange} /></div>
-            <div><label className="font-bold block mb-2">Slug</label><input type="text" required className="w-full border rounded p-3 bg-gray-50" value={slug} onChange={e => setSlug(e.target.value)} /></div>
-          </div>
+      {error && (
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+          <p>{error}</p>
+        </div>
+      )}
 
-          {/* Giá & Kho */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div><label className="font-bold block mb-2">Giá (VNĐ)</label><input type="number" required className="w-full border rounded p-3" value={price} onChange={e => setPrice(e.target.value)} /></div>
-            <div><label className="font-bold block mb-2">Số lượng kho</label><input type="number" required className="w-full border rounded p-3" value={countInStock} onChange={e => setCountInStock(e.target.value)} /></div>
-          </div>
+      {/* FORM CONTAINER */}
+      <form onSubmit={submitHandler} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* CỘT TRÁI: THÔNG TIN CHUNG */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <h3 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Thông tin cơ bản</h3>
+            
+            {/* Tên sản phẩm */}
+            <div className="mb-4">
+              <label className="block text-gray-600 font-medium mb-2">Tên sản phẩm</label>
+              <input
+                type="text"
+                placeholder="Ví dụ: iPhone 15 Pro Max..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#724ae8] focus:border-transparent outline-none transition"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
 
-          {/* Danh mục & Brand */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <div><label className="font-bold block mb-2">Danh mục</label><input type="text" required className="w-full border rounded p-3" value={category} onChange={e => setCategory(e.target.value)} /></div>
-             <div><label className="font-bold block mb-2">Thương hiệu</label><input type="text" required className="w-full border rounded p-3" value={brand} onChange={e => setBrand(e.target.value)} /></div>
-          </div>
-
-          {/* Ảnh */}
-          <div><label className="font-bold block mb-2">Link Ảnh</label><input type="text" required className="w-full border rounded p-3" value={image} onChange={e => setImage(e.target.value)} /></div>
-
-          {/* --- PHẦN MỚI: THÔNG SỐ KỸ THUẬT --- */}
-          <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-            <h3 className="font-bold text-lg mb-4 text-gray-700">Thông số kỹ thuật</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label className="text-sm font-semibold block mb-1">Màn hình</label>
-                    <input type="text" className="w-full border rounded p-2" placeholder="Ví dụ: 6.7 inch OLED" 
-                           value={specs.screen} onChange={(e) => setSpecs({...specs, screen: e.target.value})} />
-                </div>
-                <div>
-                    <label className="text-sm font-semibold block mb-1">Chip xử lý</label>
-                    <input type="text" className="w-full border rounded p-2" placeholder="Ví dụ: Apple A17 Pro" 
-                           value={specs.chip} onChange={(e) => setSpecs({...specs, chip: e.target.value})} />
-                </div>
-                <div>
-                    <label className="text-sm font-semibold block mb-1">RAM</label>
-                    <input type="text" className="w-full border rounded p-2" placeholder="Ví dụ: 8GB" 
-                           value={specs.ram} onChange={(e) => setSpecs({...specs, ram: e.target.value})} />
-                </div>
-                <div>
-                    <label className="text-sm font-semibold block mb-1">Pin / Sạc</label>
-                    <input type="text" className="w-full border rounded p-2" placeholder="Ví dụ: 4422 mAh, 20W" 
-                           value={specs.battery} onChange={(e) => setSpecs({...specs, battery: e.target.value})} />
-                </div>
+            {/* Mô tả */}
+            <div className="mb-4">
+              <label className="block text-gray-600 font-medium mb-2">Mô tả chi tiết</label>
+              <textarea
+                placeholder="Nhập mô tả sản phẩm..."
+                rows="5"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#724ae8] focus:border-transparent outline-none transition"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              ></textarea>
             </div>
           </div>
 
-          {/* Mô tả */}
-          <div><label className="font-bold block mb-2">Mô tả</label><textarea rows="4" className="w-full border rounded p-3" value={description} onChange={e => setDescription(e.target.value)}></textarea></div>
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <h3 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Giá & Kho hàng</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Giá */}
+              <div>
+                <label className="block text-gray-600 font-medium mb-2">Giá bán (VNĐ)</label>
+                <input
+                  type="number"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#724ae8] outline-none"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  min="0"
+                />
+              </div>
+              
+               {/* Giảm giá */}
+               <div>
+                <label className="block text-gray-600 font-medium mb-2">Giảm giá (%)</label>
+                <input
+                  type="number"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#724ae8] outline-none"
+                  value={discount}
+                  onChange={(e) => setDiscount(e.target.value)}
+                  min="0"
+                  max="100"
+                />
+              </div>
 
-          <button type="submit" disabled={loading} className="w-full bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700 transition">
-            {loading ? 'Đang xử lý...' : <><FaSave className="inline mr-2"/> LƯU SẢN PHẨM</>}
-          </button>
-        </form>
-      </div>
+              {/* Tồn kho */}
+              <div>
+                <label className="block text-gray-600 font-medium mb-2">Số lượng trong kho</label>
+                <input
+                  type="number"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#724ae8] outline-none"
+                  value={countInStock}
+                  onChange={(e) => setCountInStock(e.target.value)}
+                  min="0"
+                />
+              </div>
+
+              {/* Danh mục */}
+              <div>
+                <label className="block text-gray-600 font-medium mb-2">Danh mục</label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Điện thoại, Laptop..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#724ae8] outline-none"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* CỘT PHẢI: HÌNH ẢNH & TÁC VỤ */}
+        <div className="lg:col-span-1 space-y-6">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <h3 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">Hình ảnh</h3>
+            
+            {/* Input Link Ảnh */}
+            <div className="mb-4">
+              <label className="block text-gray-600 font-medium mb-2">Link Ảnh (URL)</label>
+              <input
+                type="text"
+                placeholder="https://..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#724ae8] outline-none text-sm"
+                value={image}
+                onChange={(e) => setImage(e.target.value)}
+              />
+            </div>
+
+            {/* Input File (Upload) */}
+            <div className="mb-4">
+              <label className="block text-gray-600 font-medium mb-2">Hoặc tải lên</label>
+              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    {uploading ? (
+                         <p className="text-sm text-gray-500">Đang tải lên...</p>
+                    ) : (
+                        <>
+                            <FaCloudUploadAlt className="w-8 h-8 mb-2 text-gray-400" />
+                            <p className="text-sm text-gray-500"><span className="font-semibold">Click để tải ảnh</span></p>
+                        </>
+                    )}
+                </div>
+                <input type="file" className="hidden" onChange={uploadFileHandler} />
+              </label>
+            </div>
+
+            {/* Preview Ảnh */}
+            <div className="mt-4">
+              <p className="text-sm text-gray-500 mb-2">Xem trước:</p>
+              <div className="w-full h-48 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center overflow-hidden">
+                {image ? (
+                  <img src={image} alt="Preview" className="w-full h-full object-contain" />
+                ) : (
+                  <div className="text-gray-400 flex flex-col items-center">
+                    <FaImage className="text-4xl mb-2" />
+                    <span>Chưa có ảnh</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Nút Submit */}
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 sticky top-24">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#724ae8] hover:bg-[#5f3dc4] text-white font-bold py-3 px-4 rounded-lg shadow-lg flex items-center justify-center gap-2 transition transform active:scale-95 disabled:opacity-50"
+            >
+              {loading ? (
+                <span>Đang xử lý...</span>
+              ) : (
+                <>
+                  <FaSave /> {isEditMode ? "Cập Nhật Sản Phẩm" : "Lưu Sản Phẩm"}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </form>
     </div>
   );
 };
+
 export default AdminProductForm;

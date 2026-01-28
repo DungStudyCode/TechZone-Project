@@ -72,44 +72,78 @@ const deleteProduct = async (req, res) => {
 
 // 5. Thêm mới sản phẩm
 // POST /api/products
+// Hàm hỗ trợ tạo Slug tiếng Việt (Ví dụ: "Điện thoại" -> "dien-thoai")
+const createSlug = (text) => {
+  return text
+    .toString()
+    .toLowerCase()
+    .normalize("NFD") // Tách dấu ra khỏi chữ
+    .replace(/[\u0300-\u036f]/g, "") // Xóa các dấu
+    .replace(/\s+/g, "-") // Thay khoảng trắng bằng dấu gạch ngang
+    .replace(/[^\w\-]+/g, "") // Xóa các ký tự đặc biệt
+    .replace(/\-\-+/g, "-") // Xóa các dấu gạch ngang kép
+    .replace(/^-+/, "") // Xóa gạch ngang đầu
+    .replace(/-+$/, ""); // Xóa gạch ngang cuối
+};
+
+// ✅ SỬA HÀM TẠO SẢN PHẨM
 const createProduct = async (req, res) => {
   try {
-    const { name, slug, price, image, category, brand, countInStock, description, specs } = req.body;
+    const { name, price, description, image, brand, category, countInStock, specs, discount } = req.body;
 
+    // 1. Tự động tạo Slug từ tên
+    const slug = createSlug(name);
+
+    // 2. Kiểm tra trùng lặp (Optional)
     const productExists = await Product.findOne({ name });
     if (productExists) {
-      return res.status(400).json({ message: 'Tên sản phẩm đã tồn tại' });
+      return res.status(400).json({ message: 'Sản phẩm này đã tồn tại' });
     }
 
+    // 3. Tạo sản phẩm mới với đầy đủ trường bắt buộc
     const product = new Product({
-      name, slug, price, image, category, brand, countInStock, description, specs
+      name,
+      slug, // <--- Quan trọng: Server tự tạo
+      price,
+      description,
+      image,
+      brand,
+      category,
+      countInStock,
+      specs,
+      discount,
+      user: req.user._id, // <--- Quan trọng: Lấy ID của Admin đang đăng nhập
     });
 
     const createdProduct = await product.save();
     res.status(201).json(createdProduct);
+
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi tạo sản phẩm: ' + error.message });
+    console.error("Lỗi tạo SP:", error);
+    res.status(500).json({ message: 'Lỗi Server: ' + error.message });
   }
 };
 
-// 6. Cập nhật sản phẩm
-// PUT /api/products/:id
+// ✅ SỬA HÀM CẬP NHẬT SẢN PHẨM
 const updateProduct = async (req, res) => {
   try {
-    const { name, slug, price, image, category, brand, countInStock, description, specs } = req.body;
-    
+    const { name, price, description, image, brand, category, countInStock, specs, discount } = req.body;
+
     const product = await Product.findById(req.params.id);
 
     if (product) {
       product.name = name || product.name;
-      product.slug = slug || product.slug;
+      // Nếu tên đổi thì cập nhật luôn slug
+      if (name) product.slug = createSlug(name);
+      
       product.price = price || product.price;
-      product.image = image || product.image;
-      product.category = category || product.category;
-      product.brand = brand || product.brand;
-      product.countInStock = countInStock; 
       product.description = description || product.description;
+      product.image = image || product.image;
+      product.brand = brand || product.brand;
+      product.category = category || product.category;
+      product.countInStock = countInStock || product.countInStock;
       product.specs = specs || product.specs;
+      product.discount = discount || product.discount; // Cập nhật giảm giá
 
       const updatedProduct = await product.save();
       res.json(updatedProduct);
@@ -117,7 +151,8 @@ const updateProduct = async (req, res) => {
       res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
     }
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi cập nhật: ' + error.message });
+    console.error("Lỗi cập nhật SP:", error);
+    res.status(500).json({ message: 'Lỗi Server: ' + error.message });
   }
 };
 

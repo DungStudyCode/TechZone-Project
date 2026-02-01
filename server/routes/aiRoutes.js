@@ -2,18 +2,20 @@
 const express = require('express');
 const router = express.Router();
 
-// Import Controller
-const { chatWithAI } = require('../controllers/aiClientController'); // Chatbot cũ
-const { analyzeCustomerSentiment, analyzeBusinessStrategy } = require('../controllers/aiAdminController'); // Admin mới
+// 1. Import đúng file Controller đã tạo (aiController.js)
+const { chatWithAI } = require('../controllers/aiController'); 
+
+// Import Controller cho Admin (giữ nguyên)
+const { analyzeCustomerSentiment, analyzeBusinessStrategy } = require('../controllers/aiAdminController');
 
 // Import Middleware bảo vệ
 const { protect, admin } = require('../middleware/authMiddleware');
 
 // --- ROUTE CHO KHÁCH (Chatbot) ---
-router.post('/client/chat', chatWithAI);
+// ✅ SỬA LẠI: Để '/chat' để khớp với Frontend gọi API: /api/ai/chat
+router.post('/chat', chatWithAI); 
 
 // --- ROUTE CHO ADMIN (AI Phân tích) ---
-// Yêu cầu: Đăng nhập + Là Admin
 router.post('/admin/analyze-customer', protect, admin, analyzeCustomerSentiment);
 router.post('/admin/analyze-strategy', protect, admin, analyzeBusinessStrategy);
 

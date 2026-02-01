@@ -1,82 +1,115 @@
 // server/controllers/aiController.js
-const User = require('../models/User');
-const Order = require('../models/Order');
-const Product = require('../models/Product');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const Product = require('../models/Product');
+require('dotenv').config();
 
+// Khởi tạo Gemini với API Key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-exports.chatWithCustomer = async (req, res) => {
+exports.chatWithAI = async (req, res) => {
   try {
-    const { message, userId, currentProductId, cartItems } = req.body; // Frontend gửi lên
+    const { message } = req.body;
+    
+    // --- BƯỚC 1: TÌM KIẾM VÀ LẤY DỮ LIỆU ĐÁNH GIÁ ---
+    let relatedProducts = [];
+    
+    const keywords = message.split(' ').filter(word => word.length > 2);
+    
+    if (keywords.length > 0) {
+        const regexQueries = keywords.map(word => ({ 
+            name: { $regex: word, $options: 'i' } 
+        }));
 
-    // 1. Lấy thông tin User & Lịch sử mua hàng (Personalization)
-    let userContext = "Khách hàng ẩn danh.";
-    if (userId) {
-      const user = await User.findById(userId);
-      const lastOrders = await Order.find({ user: userId })
-                                    .sort({ createdAt: -1 }).limit(3)
-                                    .populate('orderItems.product', 'name');
-      
-      const boughtItems = lastOrders.map(o => 
-        o.orderItems.map(i => i.product?.name).join(', ')
-      ).join('; ');
+        // Tìm trong MongoDB
+        const productsRaw = await Product.find({ 
+            $or: regexQueries 
+        })
+        // ✅ LẤY THÊM: rating, numReviews, reviews
+        .select('name price image slug description rating numReviews reviews') 
+        .limit(3);
 
-      userContext = `Tên khách: ${user.name}. Đã từng mua: ${boughtItems || 'Chưa có'}.`;
+        // ✅ XỬ LÝ REVIEW: Chỉ lấy 3 review mới nhất để gửi cho AI (tránh quá tải)
+        relatedProducts = productsRaw.map(p => {
+            const topReviews = p.reviews && p.reviews.length > 0
+                ? p.reviews.slice(-3).map(r => `"${r.comment}" (${r.rating} sao)`).join("; ")
+                : "Chưa có đánh giá chi tiết";
+
+            return {
+                _id: p._id,
+                name: p.name,
+                price: p.price,
+                image: p.image,
+                slug: p.slug,
+                rating: p.rating,          // Gửi sao cho Frontend vẽ
+                numReviews: p.numReviews,
+                recentReviews: topReviews  // Gửi nội dung review cho AI đọc
+            };
+        });
     }
 
-    // 2. Lấy thông tin sản phẩm đang xem để gợi ý (Cross-selling)
+    // --- BƯỚC 2: CHUẨN BỊ CONTEXT CHO AI ---
     let productContext = "";
-    let suggestedProducts = [];
-    
-    if (currentProductId) {
-      const currentProduct = await Product.findById(currentProductId);
-      productContext = `Khách đang xem sản phẩm: ${currentProduct.name} (Loại: ${currentProduct.category}).`;
+    if (relatedProducts.length > 0) {
+        // Tạo context gọn nhẹ chỉ chứa thông tin cần thiết cho AI
+        const contextForAI = relatedProducts.map(p => ({
+            name: p.name,
+            price: p.price,
+            rating: p.rating,
+            reviews: p.recentReviews // AI sẽ đọc cái này
+        }));
 
-      // Logic tìm phụ kiện: Tìm sản phẩm khác category nhưng liên quan (ví dụ đơn giản)
-      // Trong thực tế, bạn có thể hardcode map: Laptop -> Mouse, Balo
-      if (currentProduct.category === 'Laptop') {
-        suggestedProducts = await Product.find({ category: { $in: ['Mouse', 'Keyboard', 'Accessories'] } }).limit(5).select('name price');
-      } else {
-        // Gợi ý sản phẩm cùng loại
-        suggestedProducts = await Product.find({ category: currentProduct.category, _id: { $ne: currentProductId } }).limit(3).select('name price');
-      }
+        productContext = `
+        Dưới đây là thông tin sản phẩm và PHẢN HỒI CỦA KHÁCH HÀNG CŨ:
+        ${JSON.stringify(contextForAI)}
+        `;
     }
+
+    // --- BƯỚC 3: CẤU HÌNH MODEL ---
+    // Lưu ý: Mình để "gemini-1.5-flash" vì bản "2.5" hiện chưa ổn định công khai (gây lỗi 404)
+    // Nếu bạn chắc chắn tài khoản bạn dùng được 2.5 thì cứ sửa lại số nhé.
+    const model = genAI.getGenerativeModel({ 
+        model: "gemini-2.5-flash", 
+        safetySettings: [
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+        ]
+    });
     
-    // Convert list gợi ý sang chuỗi để AI đọc
-    const suggestionText = suggestedProducts.map(p => `- ${p.name} (${p.price.toLocaleString()}đ)`).join('\n');
-
-    // 3. TẠO SYSTEM PROMPT (QUAN TRỌNG)
-    const systemPrompt = `
-      Bạn là trợ lý ảo chuyên nghiệp của TechZone.
+    // Tạo Prompt
+    const prompt = `
+      Bạn là nhân viên tư vấn nhiệt tình của TechZone.
+      Khách hàng hỏi: "${message}"
       
-      THÔNG TIN KHÁCH HÀNG:
-      ${userContext}
-      
-      BỐI CẢNH HIỆN TẠI:
       ${productContext}
-      ${cartItems && cartItems.length > 0 ? `Trong giỏ hàng đang có: ${cartItems.map(i => i.name).join(', ')}` : ''}
-      
-      DANH SÁCH SẢN PHẨM GỢI Ý CÓ SẴN TRONG KHO (Dùng để Cross-selling):
-      ${suggestionText}
 
-      NHIỆM VỤ:
-      1. Nếu khách đã đăng nhập, hãy chào bằng tên thật thân thiện.
-      2. Dựa vào lịch sử mua hàng, hãy hỏi thăm sản phẩm cũ dùng có tốt không.
-      3. Nếu khách đang xem Laptop, hãy khéo léo gợi ý mua thêm Chuột hoặc Balo từ danh sách trên (Cross-selling).
-      4. Trả lời ngắn gọn, tập trung vào bán hàng, giọng văn vui vẻ.
-      5. Câu hỏi của khách: "${message}"
+      YÊU CẦU TRẢ LỜI:
+      1. Ngắn gọn, thân thiện (dưới 100 từ).
+      2. Giới thiệu giá sản phẩm nếu có.
+      3. QUAN TRỌNG: Hãy khéo léo nhắc đến đánh giá của khách hàng cũ (dựa trên thông tin "rating" và "reviews" tôi cung cấp). Ví dụ: "Sản phẩm này được khách khen pin trâu lắm ạ...".
+      4. KHÔNG gửi link ảnh/link mua.
+      5. Tuyệt đối KHÔNG dùng ký tự ** (in đậm). Chỉ dùng văn bản thường.
     `;
 
-    // 4. Gọi Gemini
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    const result = await model.generateContent(systemPrompt);
-    const response = result.response.text();
+    // Gửi yêu cầu
+    const result = await model.generateContent(prompt);
+    let textResponse = result.response.text();
 
-    res.json({ reply: response });
+    // ✅ LÀM SẠCH KỸ LƯỠNG (Xóa dấu ** nếu AI lỡ tạo ra)
+    textResponse = textResponse.replace(/\*\*/g, '').replace(/##/g, '').trim();
+
+    // --- BƯỚC 4: TRẢ KẾT QUẢ ---
+    res.json({
+        reply: textResponse,
+        products: relatedProducts 
+    });
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "AI Error" });
+    console.error("Chatbot Error:", error);
+    res.status(500).json({ 
+        reply: "Xin lỗi, hiện tại tôi đang bị quá tải một chút. Bạn vui lòng hỏi lại sau ít phút nhé!",
+        products: []
+    });
   }
 };

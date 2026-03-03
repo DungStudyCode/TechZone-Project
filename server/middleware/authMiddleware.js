@@ -12,13 +12,19 @@ const protect = async (req, res, next) => {
       req.user = await User.findById(decoded.id).select('-password');
       next();
     } catch (error) {
-      console.error(error);
-      res.status(401).json({ message: 'Not authorized, token failed' });
+      console.error("Lỗi xác thực Token:", error.message);
+      
+      // ✅ Tối ưu: Bắt chính xác lỗi hết hạn Token
+      if (error.name === 'TokenExpiredError') {
+         return res.status(401).json({ message: 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!' });
+      }
+      
+      return res.status(401).json({ message: 'Không có quyền truy cập, token không hợp lệ!' });
     }
   }
 
   if (!token) {
-    res.status(401).json({ message: 'Not authorized, no token' });
+    return res.status(401).json({ message: 'Không có quyền truy cập, không tìm thấy token!' });
   }
 };
 
@@ -26,7 +32,7 @@ const admin = (req, res, next) => {
   if (req.user && req.user.isAdmin) {
     next();
   } else {
-    res.status(401).json({ message: 'Not authorized as an admin' });
+    return res.status(401).json({ message: 'Không có quyền truy cập dành cho Admin' });
   }
 };
 

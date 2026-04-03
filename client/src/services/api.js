@@ -6,18 +6,28 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL, 
 });
 
-// --- KIỂM TRA ĐOẠN NÀY ---
 // Tự động thêm Token vào mọi request nếu có
 api.interceptors.request.use((config) => {
-  const userInfo = localStorage.getItem('userInfo');
-  if (userInfo) {
-    const { token } = JSON.parse(userInfo);
-    config.headers.Authorization = `Bearer ${token}`;
+  try {
+    const userInfoString = localStorage.getItem('userInfo');
+    if (userInfoString) {
+      const userInfo = JSON.parse(userInfoString);
+      
+      // Kiểm tra chắc chắn token có tồn tại mới gán vào Header
+      if (userInfo && userInfo.token) {
+        config.headers.Authorization = `Bearer ${userInfo.token}`;
+      }
+    }
+  } catch (error) {
+    // Đề phòng localStorage bị ai đó sửa bậy bạ thành text không phải JSON
+    console.error("Lỗi khi đọc token từ localStorage:", error);
+    // Có thể thêm logic xóa localStorage bị hỏng tại đây: 
+    // localStorage.removeItem('userInfo');
   }
+  
   return config;
 }, (error) => {
   return Promise.reject(error);
 });
-// --------------------------
 
 export default api;

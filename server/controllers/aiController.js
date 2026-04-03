@@ -24,36 +24,47 @@ exports.chatWithAI = async (req, res) => {
     const keywords = parsedMessage.split(' ').filter(word => word.trim().length > 1);
     
     if (keywords.length > 0) {
-        // Tạo query tìm kiếm: Chứa từ khóa này HOẶC từ khóa kia
-        const regexQueries = keywords.map(word => ({ 
-            name: { $regex: word, $options: 'i' } 
-        }));
+    const regexQueries = keywords.map(word => ({ 
+        name: { $regex: word, $options: 'i' } 
+    }));
 
-        // Tìm trong MongoDB
-        const productsRaw = await Product.find({ 
-            $or: regexQueries 
-        })
-        .select('name price image slug description rating numReviews reviews') 
-        .limit(3);
+    // TÌM KIẾM VÀ SẮP XẾP ƯU TIÊN (RANKING LOGIC)
+    const productsRaw = await Product.find({ 
+        $or: regexQueries 
+    })
+    // Thêm các trường mới vào select để AI có dữ liệu phân tích
+    .select('name price image slug description rating numReviews reviews isPromoted soldCount') 
+    // Logic sắp xếp: isPromoted (Hot) -> Rating (Sao) -> SoldCount (Bán chạy)
+    .sort({ 
+        isPromoted: -1, 
+        rating: -1, 
+        soldCount: -1 
+    })
+    .limit(5); // Tăng lên 5 để AI có nhiều lựa chọn tốt nhất
 
-        // XỬ LÝ REVIEW: Chỉ lấy 3 review mới nhất
-        relatedProducts = productsRaw.map(p => {
-            const topReviews = p.reviews && p.reviews.length > 0
-                ? p.reviews.slice(-3).map(r => `"${r.comment}" (${r.rating} sao)`).join("; ")
-                : "Chưa có đánh giá chi tiết";
+    // XỬ LÝ DỮ LIỆU TRẢ VỀ (Thêm nhãn Hot/Best Seller cho AI biết)
+    relatedProducts = productsRaw.map(p => {
+        const topReviews = p.reviews && p.reviews.length > 0
+            ? p.reviews.slice(-3).map(r => `"${r.comment}" (${r.rating} sao)`).join("; ")
+            : "Chưa có đánh giá chi tiết";
 
-            return {
-                _id: p._id,
-                name: p.name,
-                price: p.price,
-                image: p.image,
-                slug: p.slug,
-                rating: p.rating,          
-                numReviews: p.numReviews,
-                recentReviews: topReviews  
-            };
-        });
-    }
+        // Tạo nhãn thông báo độ "Hot" cho AI
+        let statusTag = "";
+        if (p.isPromoted) statusTag = "[SẢN PHẨM HOT ĐANG KHUYẾN MÃI]";
+        else if (p.soldCount > 50) statusTag = "[BÁN CHẠY NHẤT]";
+
+        return {
+            _id: p._id,
+            name: `${statusTag} ${p.name}`, // Gắn nhãn vào tên để AI dễ nhận biết
+            price: p.price,
+            image: p.image,
+            slug: p.slug,
+            rating: p.rating,          
+            numReviews: p.numReviews,
+            recentReviews: topReviews  
+        };
+    });
+}
     // --- BƯỚC 2: CHUẨN BỊ CONTEXT CHO AI ---
     let productContext = "";
     if (relatedProducts.length > 0) {
@@ -101,6 +112,8 @@ exports.chatWithAI = async (req, res) => {
          - Thay "tên-slug" bằng dữ liệu từ trường "slug" tôi cung cấp.
       4. Hãy tóm tắt ngắn gọn đánh giá của khách hàng (dựa trên "rating" và "reviews").
       5. Tuyệt đối KHÔNG dùng ký tự ** (in đậm). Chỉ dùng văn bản thường hoặc thẻ <b>.
+      6. ƯU TIÊN SẢN PHẨM: Trong danh sách tôi cung cấp, những máy có nhãn [SẢN PHẨM HOT] hoặc [BÁN CHẠY NHẤT] là những máy tốt nhất. Hãy ưu tiên giới thiệu chúng trước và dùng lời lẽ thuyết phục để khách hàng cân nhắc.
+      7. HIỂN THỊ: Giữ nguyên các nhãn [SẢN PHẨM HOT] trong câu trả lời để tạo sự chú ý.
     `;
 
     // Gửi yêu cầu
@@ -122,5 +135,42 @@ exports.chatWithAI = async (req, res) => {
         reply: "Xin lỗi, hiện tại tôi đang bị quá tải một chút. Bạn vui lòng hỏi lại sau ít phút nhé!",
         products: []
     });
+  }
+};
+
+// Thêm API tạo thư Marketing
+exports.generateMarketingEmail = async (req, res) => {
+  try {
+    const { name, totalSpent, orderCount, segment } = req.body;
+    
+    // Gọi lại genAI đã khởi tạo ở trên cùng file
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+    // Đặt lệnh cho AI
+    const prompt = `
+      Bạn là Giám đốc CSKH của hệ thống bán lẻ công nghệ TechZone.
+      Nhiệm vụ: Viết 1 đoạn Email cá nhân hóa cực kỳ khéo léo để tri ân khách hàng và mời họ mua sắm tiếp.
+      
+      Thông tin khách hàng:
+      - Tên: ${name}
+      - Nhóm khách hàng: ${segment}
+      - Số tiền đã chi tiêu tại cửa hàng: ${totalSpent} VNĐ
+      - Số lượng đơn hàng đã mua: ${orderCount} đơn
+
+      Yêu cầu:
+      - Xưng hô lịch sự (Chào anh/chị ${name}).
+      - Nhắc khéo đến sự ủng hộ của họ (nhắc đến số tiền hoặc số đơn hàng một cách tinh tế).
+      - Tặng họ 1 mã giảm giá 5% (Mã: VIP5) để mua phụ kiện, điện thoại mới.
+      - Viết ngắn gọn (khoảng 100 - 150 từ), không dòng vo.
+      - Tuyệt đối KHÔNG dùng ký tự ** (in đậm) hay mã HTML.
+    `;
+
+    const result = await model.generateContent(prompt);
+    let textResponse = result.response.text();
+
+    res.json({ emailContent: textResponse.trim() });
+  } catch (error) {
+    console.error("Lỗi tạo email AI:", error);
+    res.status(500).json({ message: "Lỗi khi gọi Gemini AI" });
   }
 };

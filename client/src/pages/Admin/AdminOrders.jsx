@@ -1,26 +1,33 @@
 // client/src/pages/Admin/AdminOrders.jsx
-import React, { useEffect, useState } from 'react';
-import api from '../../services/api';
-import { FaCheck, FaTimes, FaTruck, FaBoxOpen } from 'react-icons/fa';
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import {
+  FaCheck,
+  FaTimes,
+  FaTruck,
+  FaBoxOpen,
+  FaClipboardCheck,
+} from "react-icons/fa"; // ✅ Thêm FaClipboardCheck
 
 // Hàm format tiền
-const formatPrice = (price) => 
-  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+const formatPrice = (price) =>
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
+    price,
+  );
 
 // Hàm format ngày tháng
 const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleString('vi-VN');
+  return new Date(dateString).toLocaleString("vi-VN");
 };
 
 const AdminOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // --- SỬA LỖI LINTER: Đưa hàm fetchOrders vào trong useEffect ---
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const { data } = await api.get('/orders');
+        const { data } = await api.get("/orders");
         setOrders(data);
       } catch (error) {
         console.error("Lỗi tải đơn hàng:", error);
@@ -30,36 +37,49 @@ const AdminOrders = () => {
     };
 
     fetchOrders();
-  }, []); // Dependency rỗng nghĩa là chỉ chạy 1 lần khi vào trang
+  }, []);
 
-  // Hàm tải lại dữ liệu khi cần (dùng cho nút cập nhật)
   const reloadOrders = async () => {
     try {
-        const { data } = await api.get('/orders');
-        setOrders(data);
+      const { data } = await api.get("/orders");
+      setOrders(data);
     } catch (error) {
-        console.error("Lỗi reload:", error);
+      console.error("Lỗi reload:", error);
+    }
+  };
+
+  // ✅ HÀM MỚI: Xử lý Xác nhận đơn hàng
+  const confirmOrderHandler = async (id) => {
+    if (window.confirm("Bạn đã kiểm tra kho và muốn XÁC NHẬN đơn hàng này?")) {
+      try {
+        await api.put(`/orders/${id}/confirm`);
+        alert("Đã xác nhận đơn hàng! Bây giờ bạn có thể giao hàng.");
+        reloadOrders();
+      } catch (error) {
+        alert(error.response?.data?.message || "Lỗi xác nhận đơn");
+      }
     }
   };
 
   // --- HÀM XỬ LÝ: Đánh dấu đã giao hàng ---
   const markAsDelivered = async (id) => {
-    if (window.confirm('Xác nhận đơn hàng này đã được giao đến khách?')) {
+    if (window.confirm("Xác nhận đơn hàng này đã được giao đến khách?")) {
       try {
-        await api.put(`/orders/${id}/deliver`, { status: 'Delivered' });
-        alert("Cập nhật thành công!");
-        reloadOrders(); // Gọi hàm reload riêng
+        await api.put(`/orders/${id}/deliver`, { status: "Delivered" });
+        alert("Cập nhật giao hàng thành công!");
+        reloadOrders();
       } catch (error) {
         alert(error.response?.data?.message || "Lỗi cập nhật");
       }
     }
   };
 
-  if (loading) return (
-    <div className="flex justify-center items-center h-64">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-700"></div>
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-700"></div>
+      </div>
+    );
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -87,40 +107,62 @@ const AdminOrders = () => {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {orders.map((order) => (
-                <tr key={order._id} className="hover:bg-gray-50 transition-colors">
-                  
+                <tr
+                  key={order._id}
+                  className="hover:bg-gray-50 transition-colors"
+                >
                   {/* Cột 1: ID & Ngày */}
                   <td className="px-5 py-4 text-sm">
                     <p className="font-mono text-purple-600 font-bold text-xs">
                       #{order._id.slice(-6).toUpperCase()}
                     </p>
-                    <p className="text-gray-500 text-xs mt-1">{formatDate(order.createdAt)}</p>
+                    <p className="text-gray-500 text-xs mt-1">
+                      {formatDate(order.createdAt)}
+                    </p>
                   </td>
 
                   {/* Cột 2: Khách hàng */}
                   <td className="px-5 py-4 text-sm">
                     <p className="font-bold text-gray-800">
-                        {order.user?.name || "Khách lẻ"}
+                      {order.user?.name || "Khách lẻ"}
                     </p>
                     {order.shippingAddress && (
-                        <>
-                            <p className="text-gray-500 text-xs">{order.shippingAddress.phone}</p>
-                            <p className="text-gray-400 text-xs truncate w-40" title={order.shippingAddress.address}>
-                            {order.shippingAddress.city}
-                            </p>
-                        </>
+                      <>
+                        <p className="text-gray-500 text-xs">
+                          {order.shippingAddress.phone}
+                        </p>
+                        <p
+                          className="text-gray-400 text-xs truncate w-40"
+                          title={order.shippingAddress.address}
+                        >
+                          {order.shippingAddress.city}
+                        </p>
+                      </>
                     )}
                   </td>
 
                   {/* Cột 3: Sản phẩm */}
                   <td className="px-5 py-4 text-sm">
                     {order.orderItems.map((item, index) => (
-                      <div key={index} className="flex items-center gap-2 mb-2 last:mb-0">
-                        <img src={item.image} alt="" className="w-8 h-8 object-contain border rounded bg-white" />
+                      <div
+                        key={index}
+                        className="flex items-center gap-2 mb-2 last:mb-0"
+                      >
+                        <img
+                          src={item.image}
+                          alt=""
+                          className="w-8 h-8 object-contain border rounded bg-white"
+                        />
                         <div>
-                          <p className="text-xs font-semibold text-gray-700 line-clamp-1 w-32" title={item.name}>{item.name}</p>
+                          <p
+                            className="text-xs font-semibold text-gray-700 line-clamp-1 w-32"
+                            title={item.name}
+                          >
+                            {item.name}
+                          </p>
                           <p className="text-[10px] text-gray-500">
-                            x{item.quantity} {item.color ? `| ${item.color}` : ''}
+                            x{item.qty || item.quantity}{" "}
+                            {item.color ? `| ${item.color}` : ""}
                           </p>
                         </div>
                       </div>
@@ -129,36 +171,60 @@ const AdminOrders = () => {
 
                   {/* Cột 4: Tổng tiền & Thanh toán */}
                   <td className="px-5 py-4 text-sm">
-                    <div className="font-bold text-red-600 mb-1">{formatPrice(order.totalPrice)}</div>
-                    {order.paymentMethod === 'COD' ? (
-                         <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200">COD</span>
+                    <div className="font-bold text-red-600 mb-1">
+                      {formatPrice(order.totalPrice)}
+                    </div>
+                    {order.paymentMethod === "COD" ? (
+                      <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200">
+                        COD
+                      </span>
                     ) : (
-                         <span className="text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded border border-green-200">Paid</span>
+                      <span className="text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded border border-green-200">
+                        Paid
+                      </span>
                     )}
                   </td>
 
-                  {/* Cột 5: Trạng thái Giao hàng */}
+                  {/* Cột 5: Trạng thái */}
                   <td className="px-5 py-4 text-sm">
-                    {order.isDelivered || order.status === 'Delivered' ? (
-                      <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-bold flex items-center w-fit gap-1">
+                    {order.isDelivered || order.status === "Delivered" ? (
+                      <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-[11px] font-bold flex items-center w-fit gap-1">
                         <FaCheck /> Đã giao
                       </span>
-                    ) : (
-                      <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold flex items-center w-fit gap-1 animate-pulse">
+                    ) : order.status === "Confirmed" ? (
+                      <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-[11px] font-bold flex items-center w-fit gap-1 animate-pulse">
                         <FaTruck /> Đang giao
+                      </span>
+                    ) : (
+                      <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-[11px] font-bold flex items-center w-fit gap-1">
+                        Chờ xác nhận
                       </span>
                     )}
                   </td>
 
-                  {/* Cột 6: Hành động (Nút xác nhận) */}
+                  {/* Cột 6: Hành động (Xác nhận / Giao hàng) */}
                   <td className="px-5 py-4 text-center">
-                    {!order.isDelivered && order.status !== 'Delivered' && (
-                      <button 
+                    {/* Nút Xác nhận đơn: Hiện khi KHÔNG PHẢI Confirmed và KHÔNG PHẢI Delivered */}
+                    {order.status !== "Confirmed" &&
+                      order.status !== "Delivered" &&
+                      !order.isDelivered && (
+                        <button
+                          onClick={() => confirmOrderHandler(order._id)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-md flex items-center gap-2 mx-auto"
+                          title="Xác nhận đơn hàng"
+                        >
+                          <FaClipboardCheck size={14} /> Xác nhận
+                        </button>
+                      )}
+
+                    {/* Nút Giao hàng: Chỉ hiện khi ĐÃ xác nhận (Confirmed) và chưa giao */}
+                    {order.status === "Confirmed" && !order.isDelivered && (
+                      <button
                         onClick={() => markAsDelivered(order._id)}
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-md text-xs font-bold transition shadow-sm hover:shadow flex items-center gap-1 mx-auto"
+                        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-md flex items-center gap-2 mx-auto"
                         title="Xác nhận đã giao hàng"
                       >
-                        <FaBoxOpen /> Giao hàng
+                        <FaBoxOpen size={14} /> Giao hàng
                       </button>
                     )}
                   </td>
@@ -166,11 +232,11 @@ const AdminOrders = () => {
               ))}
             </tbody>
           </table>
-          
+
           {orders.length === 0 && (
             <div className="p-12 text-center flex flex-col items-center text-gray-400">
-                <FaBoxOpen className="text-4xl mb-3 opacity-20"/>
-                <p>Chưa có đơn hàng nào!</p>
+              <FaBoxOpen className="text-4xl mb-3 opacity-20" />
+              <p>Chưa có đơn hàng nào!</p>
             </div>
           )}
         </div>

@@ -1,20 +1,35 @@
 // server/controllers/productController.js
 const Product = require('../models/Product');
 
-// 1. Lấy toàn bộ danh sách sản phẩm (Có tìm kiếm keyword)
-// GET /api/products?keyword=iphone
+// 1. Lấy danh sách sản phẩm (Hỗ trợ lọc theo keyword, category, brand)
+// GET /api/products?keyword=iphone&category=Điện thoại&brand=Apple
 const getProducts = async (req, res) => {
   try {
-    const keyword = req.query.keyword
-      ? {
-          name: {
-            $regex: req.query.keyword,
-            $options: 'i',
-          },
-        }
-      : {};
+    // 1. Tạo một object rỗng để chứa các điều kiện lọc
+    const filter = {};
 
-    const products = await Product.find({ ...keyword });
+    // 2. Nếu có keyword -> Tìm theo tên (Không phân biệt hoa thường)
+    if (req.query.keyword) {
+      filter.name = {
+        $regex: req.query.keyword,
+        $options: 'i',
+      };
+    }
+
+    // 3. Nếu có category và không phải là 'All' -> Lọc theo Danh mục
+    if (req.query.category && req.query.category !== 'All') {
+      filter.category = req.query.category;
+    }
+
+    // 4. Nếu có brand và không phải là 'All' -> Lọc theo Hãng
+    if (req.query.brand && req.query.brand !== 'All') {
+      filter.brand = req.query.brand;
+    }
+
+    // 5. Ném bộ lọc vào database. 
+    // Nếu không có điều kiện nào, filter sẽ là {}, mongoose sẽ lấy toàn bộ DB.
+    const products = await Product.find(filter);
+    
     res.json(products);
   } catch (error) {
     res.status(500).json({ message: error.message });

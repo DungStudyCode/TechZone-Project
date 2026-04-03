@@ -21,66 +21,35 @@ const reviewSchema = mongoose.Schema(
 const productSchema = mongoose.Schema(
   {
     // --- 1. THÔNG TIN CƠ BẢN (Bắt buộc) ---
-    name: { 
-      type: String, 
-      required: true 
-    },
-    slug: { 
-      type: String, 
-      required: true, 
-      unique: true 
-    },
-    image: { 
-      type: String, 
-      required: true 
-    },
-    brand: { 
-      type: String, 
-      required: true 
-    },
-    category: { 
-      type: String, 
-      required: true 
-    },
-    description: { 
-      type: String, 
-      required: true 
-    },
+    name: { type: String, required: true },
+    slug: { type: String, required: true, unique: true },
+    image: { type: String, required: true },
+    brand: { type: String, required: true },
+    category: { type: String, required: true },
+    description: { type: String, required: true },
 
-    // --- 2. GIÁ VÀ KHO ---
-    price: { 
-      type: Number, 
-      required: true, 
-      default: 0 
-    },
-    countInStock: { 
-      type: Number, 
-      required: true, 
-      default: 0 
-    },
+    // --- 2. GIÁ, KHO VÀ CHỈ SỐ "HOT" (CẬP NHẬT TẠI ĐÂY) ---
+    price: { type: Number, required: true, default: 0 },
+    countInStock: { type: Number, required: true, default: 0 },
+    
+    // Trường mới: Theo dõi số lượng bán để xác định hàng "Hot"
+    soldCount: { type: Number, required: true, default: 0 },
+    
+    // Trường mới: Admin tick vào để đẩy sản phẩm lên đầu (Ưu tiên cao nhất)
+    isPromoted: { type: Boolean, required: true, default: false },
 
-    // --- 3. THÔNG SỐ KỸ THUẬT (MỞ RỘNG) ---
-    specs: {
-      screen: { type: String, default: "" }, 
-      chip: { type: String, default: "" },   
-      ram: { type: String, default: "" },    
-      battery: { type: String, default: "" } 
-    },
+    // --- 3. THÔNG SỐ KỸ THUẬT (MỞ RỘNG THÀNH MẢNG ĐỘNG) ---
+    specs: [
+      {
+        keyName: { type: String, required: true }, // Tên thông số (VD: Màn hình, Camera)
+        value: { type: String, required: true }    // Giá trị (VD: 6.7 inch, 108MP)
+      }
+    ],
 
-    // --- 4. ĐÁNH GIÁ (REVIEW) - ĐÃ SỬA ---
-    // Đây là phần quan trọng bạn đang thiếu
+    // --- 4. ĐÁNH GIÁ (REVIEW) ---
     reviews: [reviewSchema], 
-
-    rating: {
-      type: Number,
-      required: true,
-      default: 0,
-    },
-    numReviews: {
-      type: Number,
-      required: true,
-      default: 0,
-    },
+    rating: { type: Number, required: true, default: 0 },
+    numReviews: { type: Number, required: true, default: 0 },
   },
   {
     timestamps: true,

@@ -20,6 +20,16 @@ import Profile from "./pages/Auth/Profile";
 import About from "./pages/Home/About";
 import Contact from "./pages/Home/Contact";
 import Policy from "./pages/Home/Policy";
+import Wishlist from "./pages/Product/Wishlist"; // <-- THÊM DÒNG NÀY
+import Support from "./pages/Support/Support"; // <-- THÊM DÒNG NÀY
+
+// ✅ IMPORT CÁC TRANG THU MUA VÀ MESSENGER VỪA TẠO
+import ThuMuaPage from "./pages/ThuMua/ThuMuaPage";
+import PostDetailPage from "./pages/ThuMua/PostDetailPage"; 
+import MessengerPage from "./pages/ThuMua/MessengerPage"; // <-- THÊM DÒNG NÀY
+import MyOrders from "./pages/Cart/MyOrders"; // <-- THÊM DÒNG NÀY
+import ScrollToTop from "./components/ScrollToTop";
+import OrderDetail from "./pages/Order/OrderDetail"; // <-- THÊM DÒNG NÀY
 
 // --- ADMIN ---
 import Dashboard from "./pages/Admin/Dashboard"; 
@@ -27,8 +37,9 @@ import ProductList from "./pages/Admin/ProductList";
 import AdminOrders from "./pages/Admin/AdminOrders";
 import AdminProductForm from "./pages/Admin/AdminProductForm"; 
 import AIInsights from "./pages/Admin/AIInsights";
+import AdminUserList from "./pages/Admin/AdminUserList"; 
 
-// ✅ 1. TẠO LAYOUT RIÊNG CHO KHÁCH HÀNG (Có Footer + Chatbot)
+// LƯU Ý: LAYOUT DÀNH CHO KHÁCH HÀNG (Có Footer + Chatbot)
 const PublicLayoutWithFooter = () => {
   return (
     <>
@@ -44,9 +55,11 @@ const PublicLayoutWithFooter = () => {
 function App() {
   return (
     <BrowserRouter>
+      {/* COMPONENT NÀY SẼ ĐƯỢC RENDER Ở MỌI TRANG, NÊN ĐƯỢC ĐẶT Ở NGOÀI CÙNG */}
+      <ScrollToTop /> {/* Đảm bảo cuộn lên đầu trang mỗi khi chuyển trang */}
       <div className="bg-gray-100 min-h-screen flex flex-col font-sans">
         
-        {/* ✅ 2. NAVBAR ĐỂ Ở NGOÀI CÙNG (Hiện trên TẤT CẢ các trang, kể cả Admin) */}
+        {/* NAVBAR ĐỂ Ở NGOÀI CÙNG (Hiện trên TẤT CẢ các trang) */}
         <Navbar />
 
         <Routes>
@@ -65,6 +78,15 @@ function App() {
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/policy" element={<Policy />} />
+              <Route path="/support" element={<Support />} /> {/* <-- THÊM DÒNG NÀY */}
+           
+              {/* ✅ CỤM TÍNH NĂNG CHỢ THU MUA */}
+              <Route path="/thu-mua" element={<ThuMuaPage />} />
+              <Route path="/thu-mua/post/:id" element={<PostDetailPage />} /> 
+              <Route path="/messenger" element={<MessengerPage />} /> {/* <-- ĐÃ GẮN VÀO ĐÂY */}
+              <Route path="/my-orders" element={<MyOrders />} /> {/* <-- ĐÃ GẮN VÀO ĐÂY */}
+              <Route path="/wishlist" element={<Wishlist />} /> {/* <-- ĐÃ GẮN VÀO ĐÂY */}
+              <Route path="/order/:id" element={<OrderDetail />} />
             </Route>
 
             {/* =========================================
@@ -82,7 +104,7 @@ function App() {
               <Route path="product/:id/edit" element={<AdminProductForm />} />
               <Route path="orders" element={<AdminOrders />} />
               <Route path="ai-insights" element={<AIInsights />} />
-              <Route path="users" element={<div><h2>Quản lý khách hàng</h2></div>} />
+              <Route path="users" element={<AdminUserList />} />
             </Route>
 
         </Routes>

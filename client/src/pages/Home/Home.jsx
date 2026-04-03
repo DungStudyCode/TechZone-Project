@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
 import ProductCard from '../../components/ProductCard';
-import { FaTruck, FaHeadset, FaUndo, FaShieldAlt, FaArrowRight, FaLaptop, FaMobileAlt, FaHeadphones } from 'react-icons/fa';
+import { FaTruck, FaHeadset, FaUndo, FaShieldAlt, FaArrowRight, FaLaptop, FaMobileAlt, FaHeadphones, FaTabletAlt, FaCamera, FaClock } from 'react-icons/fa';
 
 const Home = () => {
   const [products, setProducts] = useState([]);
@@ -29,13 +29,19 @@ const Home = () => {
     fetchProducts();
   }, [keyword]);
 
+  // --- HÀM MỚI: ĐẾM SỐ LƯỢNG SẢN PHẨM THỰC TẾ THEO DANH MỤC ---
+  const getCategoryCount = (categoryName) => {
+    if (!products || products.length === 0) return 0;
+    // Lọc và đếm những sản phẩm có category trùng khớp
+    return products.filter(product => product.category === categoryName).length;
+  };
+
   return (
     <div className="font-sans">
       
-      {/* 1. HERO BANNER (Phần mở đầu hoành tráng) */}
+      {/* 1. HERO BANNER */}
       {!keyword && (
         <div className="relative bg-gray-900 text-white h-[500px] flex items-center">
-            {/* Ảnh nền */}
             <div className="absolute inset-0 overflow-hidden">
                 <img 
                     src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=2070&auto=format&fit=crop" 
@@ -65,7 +71,7 @@ const Home = () => {
         </div>
       )}
 
-      {/* 2. DỊCH VỤ CAM KẾT (Tạo độ uy tín) */}
+      {/* 2. DỊCH VỤ CAM KẾT */}
       <div className="container mx-auto px-4 -mt-10 relative z-20">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-white p-8 rounded-xl shadow-lg border border-gray-100">
             <div className="flex items-center gap-4">
@@ -99,34 +105,84 @@ const Home = () => {
         </div>
       </div>
 
-      {/* 3. DANH MỤC NỔI BẬT (Giúp khách tìm nhanh) */}
+      {/* 3. DANH MỤC NỔI BẬT */}
       {!keyword && (
-          <div className="container mx-auto px-4 py-16">
-            <h2 className="text-2xl font-bold text-gray-800 mb-8 text-center uppercase">Danh mục sản phẩm</h2>
-            <div className="flex justify-center gap-8 flex-wrap">
-                <div className="group cursor-pointer">
-                    <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 group-hover:bg-purple-600 group-hover:text-white transition duration-300">
-                        <FaMobileAlt size={32} />
-                    </div>
-                    <p className="text-center mt-3 font-medium text-gray-700 group-hover:text-purple-600">Điện thoại</p>
+        <section className="py-16 bg-gray-50 mt-8">
+          <div className="container mx-auto px-4 max-w-6xl">
+            
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-black text-gray-800 uppercase tracking-wider">Danh Mục Sản Phẩm</h2>
+              <div className="w-20 h-1.5 bg-gradient-to-r from-purple-500 to-blue-500 mx-auto mt-3 rounded-full"></div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              
+              <Link to="/products?category=Điện thoại" className="group block">
+                <div className="bg-white border border-gray-100 rounded-3xl p-6 text-center shadow-sm hover:shadow-xl hover:border-blue-200 hover:-translate-y-2 transition-all duration-300">
+                  <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center text-3xl mb-4 bg-blue-50 text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-colors shadow-inner">
+                    <FaMobileAlt />
+                  </div>
+                  <h3 className="font-bold text-gray-800 group-hover:text-blue-600 transition-colors">Điện thoại</h3>
+                  <p className="text-xs text-gray-400 mt-1">{getCategoryCount('Điện thoại')} sản phẩm</p>
                 </div>
-                <div className="group cursor-pointer">
-                    <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 group-hover:bg-purple-600 group-hover:text-white transition duration-300">
-                        <FaLaptop size={32} />
-                    </div>
-                    <p className="text-center mt-3 font-medium text-gray-700 group-hover:text-purple-600">Laptop</p>
+              </Link>
+
+              <Link to="/products?category=Laptop" className="group block">
+                <div className="bg-white border border-gray-100 rounded-3xl p-6 text-center shadow-sm hover:shadow-xl hover:border-purple-200 hover:-translate-y-2 transition-all duration-300">
+                  <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center text-3xl mb-4 bg-purple-50 text-purple-600 group-hover:bg-purple-500 group-hover:text-white transition-colors shadow-inner">
+                    <FaLaptop />
+                  </div>
+                  <h3 className="font-bold text-gray-800 group-hover:text-purple-600 transition-colors">Laptop</h3>
+                  <p className="text-xs text-gray-400 mt-1">{getCategoryCount('Laptop')} sản phẩm</p>
                 </div>
-                <div className="group cursor-pointer">
-                    <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 group-hover:bg-purple-600 group-hover:text-white transition duration-300">
-                        <FaHeadphones size={32} />
-                    </div>
-                    <p className="text-center mt-3 font-medium text-gray-700 group-hover:text-purple-600">Phụ kiện</p>
+              </Link>
+
+              <Link to="/products?category=Tablet" className="group block">
+                <div className="bg-white border border-gray-100 rounded-3xl p-6 text-center shadow-sm hover:shadow-xl hover:border-green-200 hover:-translate-y-2 transition-all duration-300">
+                  <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center text-3xl mb-4 bg-green-50 text-green-600 group-hover:bg-green-500 group-hover:text-white transition-colors shadow-inner">
+                    <FaTabletAlt />
+                  </div>
+                  <h3 className="font-bold text-gray-800 group-hover:text-green-600 transition-colors">Tablet</h3>
+                  <p className="text-xs text-gray-400 mt-1">{getCategoryCount('Tablet')} sản phẩm</p>
                 </div>
+              </Link>
+
+              <Link to="/products?category=Phụ kiện" className="group block">
+                <div className="bg-white border border-gray-100 rounded-3xl p-6 text-center shadow-sm hover:shadow-xl hover:border-orange-200 hover:-translate-y-2 transition-all duration-300">
+                  <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center text-3xl mb-4 bg-orange-50 text-orange-600 group-hover:bg-orange-500 group-hover:text-white transition-colors shadow-inner">
+                    <FaHeadphones />
+                  </div>
+                  <h3 className="font-bold text-gray-800 group-hover:text-orange-600 transition-colors">Âm thanh</h3>
+                  <p className="text-xs text-gray-400 mt-1">{getCategoryCount('Phụ kiện')} sản phẩm</p>
+                </div>
+              </Link>
+
+              <Link to="/products?category=Smartwatch" className="group block">
+                <div className="bg-white border border-gray-100 rounded-3xl p-6 text-center shadow-sm hover:shadow-xl hover:border-pink-200 hover:-translate-y-2 transition-all duration-300">
+                  <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center text-3xl mb-4 bg-pink-50 text-pink-600 group-hover:bg-pink-500 group-hover:text-white transition-colors shadow-inner">
+                    <FaClock />
+                  </div>
+                  <h3 className="font-bold text-gray-800 group-hover:text-pink-600 transition-colors">Smartwatch</h3>
+                  <p className="text-xs text-gray-400 mt-1">{getCategoryCount('Smartwatch')} sản phẩm</p>
+                </div>
+              </Link>
+
+              <Link to="/products?category=Camera" className="group block">
+                <div className="bg-white border border-gray-100 rounded-3xl p-6 text-center shadow-sm hover:shadow-xl hover:border-teal-200 hover:-translate-y-2 transition-all duration-300">
+                  <div className="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center text-3xl mb-4 bg-teal-50 text-teal-600 group-hover:bg-teal-500 group-hover:text-white transition-colors shadow-inner">
+                    <FaCamera />
+                  </div>
+                  <h3 className="font-bold text-gray-800 group-hover:text-teal-600 transition-colors">Camera</h3>
+                  <p className="text-xs text-gray-400 mt-1">{getCategoryCount('Camera')} sản phẩm</p>
+                </div>
+              </Link>
+
             </div>
           </div>
+        </section>
       )}
 
-      {/* 4. DANH SÁCH SẢN PHẨM (Phần chính) */}
+      {/* 4. DANH SÁCH SẢN PHẨM */}
       <div id="products" className="bg-gray-50 py-16">
         <div className="container mx-auto px-4">
             <div className="mb-10 text-center">
@@ -157,11 +213,10 @@ const Home = () => {
         </div>
       </div>
 
-      {/* 5. BANNER KHUYẾN MÃI (Quảng cáo giữa trang) */}
+      {/* 5. BANNER KHUYẾN MÃI */}
       {!keyword && (
           <div className="container mx-auto px-4 py-16">
-            <div className="bg-gradient-to-r from-gray-900 to-purple-900 rounded-2xl p-12 text-center text-white relative overflow-hidden">
-                {/* Họa tiết trang trí */}
+            <div className="bg-gradient-to-r from-gray-900 to-purple-900 rounded-2xl p-12 text-center text-white relative overflow-hidden shadow-2xl">
                 <div className="absolute top-0 left-0 w-64 h-64 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 -translate-x-1/2 -translate-y-1/2"></div>
                 <div className="absolute bottom-0 right-0 w-64 h-64 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 translate-x-1/2 translate-y-1/2"></div>
                 
@@ -178,7 +233,7 @@ const Home = () => {
           </div>
       )}
 
-      {/* 6. NEWSLETTER (Đăng ký nhận tin) */}
+      {/* 6. NEWSLETTER */}
       <div className="bg-purple-600 py-16 text-white">
         <div className="container mx-auto px-4 text-center">
             <h2 className="text-2xl font-bold mb-4">Đăng ký nhận tin mới nhất</h2>

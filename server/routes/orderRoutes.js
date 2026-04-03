@@ -2,35 +2,39 @@
 const express = require('express');
 const router = express.Router();
 
-// 1. Import thêm 'getDashboardStats' từ controller
+// 1. SỬA LỖI CHÍNH TẢ Ở ĐÂY: getOrderById (Thêm chữ 'r')
 const { 
   createOrder, 
   getAllOrders, 
-  getMyOrders, 
+  getMyOrders,
+  getOrderById, // ✅ Đã sửa từ getOderById thành getOrderById
   updateOrderStatus,
-  getDashboardStats // <--- Thêm cái này
+  getDashboardStats,
+  confirmOrder, // ✅ Thêm dòng này
+  markOrderAsSuccess // ✅ Thêm dòng này
+
 } = require('../controllers/orderController');
 
 const { protect, admin } = require('../middleware/authMiddleware');
 
 // ==================================================
-// ✅ ROUTE THỐNG KÊ DASHBOARD (Đặt lên đầu tiên)
+// ✅ ROUTE THỐNG KÊ DASHBOARD
 // ==================================================
 router.get('/dashboard-stats', protect, admin, getDashboardStats);
 
+// --- CÁC ROUTE CŨ ---
 
-// --- CÁC ROUTE CŨ (Giữ nguyên) ---
-
-// Route tạo đơn hàng
 router.post('/', protect, createOrder); 
 
-// Route Admin xem toàn bộ
 router.get('/', protect, admin, getAllOrders);
 
-// Route xem đơn hàng của tôi
 router.get('/myorders', protect, getMyOrders);
 
-// Route Admin cập nhật trạng thái
-router.put('/:id/deliver', protect, admin, updateOrderStatus);
+// Route xem chi tiết đơn hàng (Giờ đã khớp với biến import ở trên)
+router.get('/:id', protect, getOrderById);
 
+router.put('/:id/deliver', protect, admin, updateOrderStatus);
+// ✅ ROUTE MỚI: Admin xác nhận đơn hàng
+router.put('/:id/confirm', protect, admin, confirmOrder);
+router.put('/:id/success', protect, markOrderAsSuccess);
 module.exports = router;

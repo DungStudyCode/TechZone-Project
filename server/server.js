@@ -3,8 +3,9 @@ const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./config/db');
+const http = require('http'); 
+const { Server } = require('socket.io'); 
 
-// --- Import Models (Cần thêm cái này để sửa dữ liệu) ---
 const Order = require('./models/Order'); 
 
 // --- Import Routes ---
@@ -12,9 +13,13 @@ const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const userRoutes = require('./routes/userRoutes'); 
 const aiRoutes = require('./routes/aiRoutes'); 
+const postRoutes = require('./routes/postRoutes'); 
+const chatRoutes = require('./routes/chatRoutes'); // ✅ 1. BỔ SUNG ROUTE CHAT
 
 dotenv.config();
 const app = express();
+const server = http.createServer(app); 
+const io = new Server(server, { cors: { origin: "*" } }); 
 
 // Kết nối DB
 connectDB();
@@ -28,44 +33,53 @@ app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ai', aiRoutes); 
+app.use('/api/posts', postRoutes); 
+app.use('/api/chats', chatRoutes); // ✅ 2. KHAI BÁO ĐƯỜNG DẪN API CHAT
+
+// --- LOGIC CHAT REALTIME 1-1 (NÂNG CẤP) ---
+io.on('connection', (socket) => {
+  console.log('⚡ Có người vừa kết nối Chat:', socket.id);
+
+  // 1. Khi User đăng nhập, cho họ vào một "Phòng cá nhân" (để nhận thông báo)
+  socket.on('setup_user', (userId) => {
+    socket.join(userId);
+    console.log(`🔔 User ${userId} đã sẵn sàng nhận thông báo`);
+  });
+
+  // 2. Khi User bấm vào 1 đoạn chat cụ thể
+  socket.on('join_chat', (conversationId) => {
+    socket.join(conversationId);
+    console.log(`🤝 User tham gia phòng chat kín: ${conversationId}`);
+  });
+
+  // 3. Xử lý khi có tin nhắn gửi đi
+  socket.on('send_message', (data) => {
+    // data bao gồm: { conversationId, senderId, receiverId, text }
+    
+    // Bắn tin nhắn vào phòng chat chung của 2 người để hiện ngay lập tức
+    io.to(data.conversationId).emit('receive_message', data);
+
+    // Bắn một thông báo "ting ting" đến phòng cá nhân của người nhận
+    if (data.receiverId) {
+      socket.to(data.receiverId).emit('new_notification', {
+        message: `Bạn có tin nhắn mới`,
+        conversationId: data.conversationId
+      });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('❌ Một người đã thoát chat');
+  });
+});
 
 // Test Route
 app.get('/', (req, res) => {
-  res.send('API is running...');
+  res.send('API is running with Socket.io...');
 });
-
-// ============================================================
-// 🛠️ TOOL SỬA DỮ LIỆU NHANH (Chạy 1 lần để hiện Doanh thu)
-// ============================================================
-const fixData = async () => {
-  try {
-    console.log("🔄 Đang ép cập nhật dữ liệu...");
-
-    // Dùng updateMany để bỏ qua bước kiểm tra validation của Mongoose
-    // Lệnh này sẽ set tất cả đơn hàng thành isPaid = true
-    await Order.updateMany(
-      {}, // Điều kiện: {} nghĩa là chọn tất cả
-      {
-        $set: {
-          isPaid: true,
-          paidAt: new Date(),
-          createdAt: new Date() // Bỏ comment dòng này nếu muốn đơn cũ hiện lên biểu đồ năm nay
-        }
-      }
-    );
-    
-    console.log("✅ ĐÃ XONG: Đã 'ép' cập nhật doanh thu thành công!");
-  } catch (error) {
-    console.log("❌ Vẫn lỗi:", error);
-  }
-};
-
-// Gọi hàm
-fixData();
-// ============================================================
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-    console.log(`🚀 Server running at: http://localhost:${PORT}`);
+server.listen(PORT, () => {
+    console.log(`🚀 Server TechZone running at: http://localhost:${PORT}`);
 });

@@ -1,5 +1,8 @@
 // client/src/App.jsx
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+// ✅ IMPORT THƯ VIỆN TOAST Ở ĐÂY
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // --- COMPONENTS ---
 import Navbar from "./components/Navbar";
@@ -20,16 +23,18 @@ import Profile from "./pages/Auth/Profile";
 import About from "./pages/Home/About";
 import Contact from "./pages/Home/Contact";
 import Policy from "./pages/Home/Policy";
-import Wishlist from "./pages/Product/Wishlist"; // <-- THÊM DÒNG NÀY
-import Support from "./pages/Support/Support"; // <-- THÊM DÒNG NÀY
+import Wishlist from "./pages/Product/Wishlist"; 
+import Support from "./pages/Support/Support"; 
+import ForgotPassword from "./pages/Auth/ForgotPassword";
+import ResetPassword from "./pages/Auth/ResetPassword";
 
-// ✅ IMPORT CÁC TRANG THU MUA VÀ MESSENGER VỪA TẠO
+// IMPORT CÁC TRANG THU MUA VÀ MESSENGER 
 import ThuMuaPage from "./pages/ThuMua/ThuMuaPage";
 import PostDetailPage from "./pages/ThuMua/PostDetailPage"; 
-import MessengerPage from "./pages/ThuMua/MessengerPage"; // <-- THÊM DÒNG NÀY
-import MyOrders from "./pages/Cart/MyOrders"; // <-- THÊM DÒNG NÀY
+import MessengerPage from "./pages/ThuMua/MessengerPage"; 
+import MyOrders from "./pages/Cart/MyOrders"; 
 import ScrollToTop from "./components/ScrollToTop";
-import OrderDetail from "./pages/Order/OrderDetail"; // <-- THÊM DÒNG NÀY
+import OrderDetail from "./pages/Order/OrderDetail"; 
 
 // --- ADMIN ---
 import Dashboard from "./pages/Admin/Dashboard"; 
@@ -39,15 +44,15 @@ import AdminProductForm from "./pages/Admin/AdminProductForm";
 import AIInsights from "./pages/Admin/AIInsights";
 import AdminUserList from "./pages/Admin/AdminUserList"; 
 
-// LƯU Ý: LAYOUT DÀNH CHO KHÁCH HÀNG (Có Footer + Chatbot)
+// LAYOUT DÀNH CHO KHÁCH HÀNG (Có Footer + Chatbot)
 const PublicLayoutWithFooter = () => {
   return (
     <>
       <div className="flex-1">
-        <Outlet /> {/* Nội dung trang (Home, Products...) */}
+        <Outlet /> 
       </div>
       <ChatBot />
-      <Footer /> {/* Footer chỉ nằm ở đây */}
+      <Footer />
     </>
   );
 };
@@ -55,17 +60,30 @@ const PublicLayoutWithFooter = () => {
 function App() {
   return (
     <BrowserRouter>
-      {/* COMPONENT NÀY SẼ ĐƯỢC RENDER Ở MỌI TRANG, NÊN ĐƯỢC ĐẶT Ở NGOÀI CÙNG */}
-      <ScrollToTop /> {/* Đảm bảo cuộn lên đầu trang mỗi khi chuyển trang */}
+      {/* ScrollToTop Đặt ngoài cùng */}
+      <ScrollToTop /> 
+      
+      {/* ✅ CẤU HÌNH TOAST NẰM Ở ĐÂY ĐỂ HOẠT ĐỘNG TOÀN TRANG */}
+      <ToastContainer 
+        position="top-right" 
+        autoClose={3000} 
+        hideProgressBar={false}
+        newestOnTop={true}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light" // Bạn có thể đổi thành "colored" nếu thích màu mè
+      />
+
       <div className="bg-gray-100 min-h-screen flex flex-col font-sans">
         
-        {/* NAVBAR ĐỂ Ở NGOÀI CÙNG (Hiện trên TẤT CẢ các trang) */}
+        {/* NAVBAR */}
         <Navbar />
 
         <Routes>
-            {/* =========================================
-                GROUP 1: TRANG KHÁCH HÀNG (Có Footer)
-            ========================================= */}
+            {/* GROUP 1: TRANG KHÁCH HÀNG */}
             <Route element={<PublicLayoutWithFooter />}>
               <Route path="/" element={<Home />} />
               <Route path="/products" element={<Products />} />
@@ -74,24 +92,23 @@ function App() {
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password/:token" element={<ResetPassword />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/policy" element={<Policy />} />
-              <Route path="/support" element={<Support />} /> {/* <-- THÊM DÒNG NÀY */}
+              <Route path="/support" element={<Support />} /> 
            
-              {/* ✅ CỤM TÍNH NĂNG CHỢ THU MUA */}
               <Route path="/thu-mua" element={<ThuMuaPage />} />
               <Route path="/thu-mua/post/:id" element={<PostDetailPage />} /> 
-              <Route path="/messenger" element={<MessengerPage />} /> {/* <-- ĐÃ GẮN VÀO ĐÂY */}
-              <Route path="/my-orders" element={<MyOrders />} /> {/* <-- ĐÃ GẮN VÀO ĐÂY */}
-              <Route path="/wishlist" element={<Wishlist />} /> {/* <-- ĐÃ GẮN VÀO ĐÂY */}
+              <Route path="/messenger" element={<MessengerPage />} /> 
+              <Route path="/my-orders" element={<MyOrders />} /> 
+              <Route path="/wishlist" element={<Wishlist />} /> 
               <Route path="/order/:id" element={<OrderDetail />} />
             </Route>
 
-            {/* =========================================
-                GROUP 2: TRANG ADMIN (Không có Footer)
-            ========================================= */}
+            {/* GROUP 2: TRANG ADMIN */}
             <Route path="/admin" element={
               <AdminRoute>
                 <AdminLayout />
@@ -106,7 +123,6 @@ function App() {
               <Route path="ai-insights" element={<AIInsights />} />
               <Route path="users" element={<AdminUserList />} />
             </Route>
-
         </Routes>
       </div>
     </BrowserRouter>

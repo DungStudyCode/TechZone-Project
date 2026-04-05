@@ -6,7 +6,9 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL, 
 });
 
-// Tự động thêm Token vào mọi request nếu có
+// ==========================================
+// TRẠM KIỂM SOÁT 1: GẮN TOKEN VÀO REQUEST
+// ==========================================
 api.interceptors.request.use((config) => {
   try {
     const userInfoString = localStorage.getItem('userInfo');
@@ -21,13 +23,35 @@ api.interceptors.request.use((config) => {
   } catch (error) {
     // Đề phòng localStorage bị ai đó sửa bậy bạ thành text không phải JSON
     console.error("Lỗi khi đọc token từ localStorage:", error);
-    // Có thể thêm logic xóa localStorage bị hỏng tại đây: 
-    // localStorage.removeItem('userInfo');
+    localStorage.removeItem('userInfo'); // Xóa luôn nếu dữ liệu hỏng
   }
   
   return config;
 }, (error) => {
   return Promise.reject(error);
 });
+
+// ==========================================
+// TRẠM KIỂM SOÁT 2: BẮT LỖI TOKEN HẾT HẠN (401)
+// ==========================================
+api.interceptors.response.use(
+  (response) => {
+    // Mọi thứ êm đẹp thì cho qua
+    return response;
+  },
+  (error) => {
+    // Nếu Backend báo lỗi 401 (Unauthorized - Token chết hoặc sai)
+    if (error.response && error.response.status === 401) {
+      console.warn("Phiên đăng nhập hết hạn. Đang tự động đăng xuất...");
+      
+      // 1. Xóa sạch dữ liệu cũ
+      localStorage.removeItem('userInfo');
+      
+      // 2. Đá văng về trang Login, kèm theo một cái đuôi cảnh báo trên URL
+      window.location.href = '/login?expired=true';
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;

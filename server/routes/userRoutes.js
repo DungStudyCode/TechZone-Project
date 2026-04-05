@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 
-// 1. Import hàm từ Controller (✅ ĐÃ BỔ SUNG THÊM 2 HÀM WISHLIST)
+// 1. Import hàm từ Controller
 const { 
   registerUser, 
   loginUser, 
@@ -10,8 +10,11 @@ const {
   sendMarketingEmail,
   getUserProfile,
   updateUserProfile,
-  getWishlist,        // <-- MỚI THÊM
-  toggleWishlist      // <-- MỚI THÊM
+  getWishlist,        
+  toggleWishlist,     
+  forgotPassword, 
+  resetPassword,
+  googleLogin // ✅ ĐÃ IMPORT HÀM GOOGLE LOGIN
 } = require('../controllers/userController');
 
 // 2. Import Middleware xác thực
@@ -21,6 +24,12 @@ const { protect, admin } = require('../middleware/authMiddleware');
 // --- CÁC ROUTE CÔNG KHAI ---
 router.post('/', registerUser);       // Đăng ký
 router.post('/login', loginUser);     // Đăng nhập
+router.post('/google-login', googleLogin); // ✅ ROUTE ĐĂNG NHẬP GOOGLE
+
+
+// ✅ ROUTE QUÊN MẬT KHẨU (KHÔNG YÊU CẦU ĐĂNG NHẬP)
+router.post('/forgotpassword', forgotPassword);
+router.put('/resetpassword/:token', resetPassword);
 
 
 // --- CÁC ROUTE CÁ NHÂN (YÊU CẦU ĐĂNG NHẬP) ---
@@ -29,7 +38,7 @@ router.route('/profile')
   .get(protect, getUserProfile)
   .put(protect, updateUserProfile);
 
-// ✅ ROUTE CHO SẢN PHẨM YÊU THÍCH (WISHLIST)
+// ROUTE CHO SẢN PHẨM YÊU THÍCH (WISHLIST)
 router.route('/wishlist')
   .get(protect, getWishlist)
   .post(protect, toggleWishlist);

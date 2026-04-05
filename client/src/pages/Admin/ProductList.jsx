@@ -1,5 +1,7 @@
+// client/src/pages/Admin/ProductList.jsx
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+// ✅ 1. Import 'api' xịn sò thay cho 'axios'
+import api from '../../services/api'; 
 import { Link } from 'react-router-dom';
 import { FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
 
@@ -11,9 +13,9 @@ const ProductList = () => {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const { data } = await axios.get('http://localhost:5000/api/products'); 
-        // Lưu ý: Đảm bảo API trả về { products: [...] } hoặc mảng [...] tùy backend của bạn
-        // Nếu backend trả về phân trang: setProducts(data.products)
+        // ✅ 2. Gọi API cực ngắn, không còn localhost
+        const { data } = await api.get('/products'); 
+        
         setProducts(data.products || data); 
         setLoading(false);
       } catch (error) {
@@ -24,16 +26,19 @@ const ProductList = () => {
     fetchProducts();
   }, []);
 
-  // Xử lý xóa (Tạm thời chỉ log ra console)
+  // Xử lý xóa sản phẩm
   const handleDelete = async (id) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
       try {
-        // await axios.delete...
-        alert('Đã xóa thành công (Demo)');
+        // ✅ 3. Mở khóa chức năng XÓA THẬT thay vì Demo
+        await api.delete(`/products/${id}`);
+        
+        alert('Đã xóa sản phẩm thành công!');
+        // Cập nhật lại danh sách trên màn hình ngay lập tức
         setProducts(products.filter(p => p._id !== id));
       } catch (error) {
-        console.error(error); // <--- THÊM DÒNG NÀY (Để biến error được sử dụng)
-        alert('Lỗi xóa sản phẩm');
+        console.error(error); 
+        alert('Lỗi xóa sản phẩm. Vui lòng thử lại!');
       }
     }
   };

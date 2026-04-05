@@ -1,15 +1,14 @@
 // client/src/components/ThuMua/PostComposer.jsx
 import React, { useState } from 'react';
-import axios from 'axios';
+// ✅ 1. IMPORT API XỊN THAY CHO AXIOS
+import api from '../../services/api'; 
 import { useAuth } from '../../contexts/AuthContext'; 
 import { FaCamera, FaPaperPlane, FaTimes, FaMapMarkerAlt } from 'react-icons/fa';
 
-// ✅ IMPORT THƯ VIỆN BẢN ĐỒ LEAFLET
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Cấu hình Icon ghim màu xanh/đỏ mặc định của Leaflet (Dùng link CDN để không bị lỗi ảnh)
 const customIcon = new L.Icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -20,7 +19,6 @@ const customIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
-// Component con xử lý sự kiện Click trên bản đồ
 const MapClickHandler = ({ onLocationSelect }) => {
   useMapEvents({
     click(e) {
@@ -41,14 +39,12 @@ const PostComposer = ({ onPostSuccess }) => {
   const [preview, setPreview] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // STATE LƯU TỌA ĐỘ
   const [lat, setLat] = useState(null);
   const [lng, setLng] = useState(null);
   const [locationName, setLocationName] = useState("");
 
-  // ✅ STATE CHO POPUP BẢN ĐỒ
   const [showMapModal, setShowMapModal] = useState(false);
-  const [mapCenter, setMapCenter] = useState([16.065, 108.22]); // Mặc định Đà Nẵng
+  const [mapCenter, setMapCenter] = useState([16.065, 108.22]); 
   const [selectedPos, setSelectedPos] = useState(null);
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -64,30 +60,25 @@ const PostComposer = ({ onPostSuccess }) => {
     setPreview(preview.filter((_, i) => i !== index));
   };
 
-  // ✅ HÀM MỞ BẢN ĐỒ
   const handleOpenMap = () => {
     setShowMapModal(true);
-    
-    // Thử lấy vị trí hiện tại để đưa bản đồ tới đó trước
     if (navigator.geolocation && !lat) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const currentLoc = [position.coords.latitude, position.coords.longitude];
           setMapCenter(currentLoc);
-          setSelectedPos(currentLoc); // Gắn ghim tạm thời
+          setSelectedPos(currentLoc); 
         },
         (error) => {
           console.warn("Chưa có quyền vị trí, dùng vị trí mặc định", error);
         }
       );
     } else if (lat && lng) {
-      // Nếu đã có tọa độ thì mở map ngay tại đó
       setMapCenter([lat, lng]);
       setSelectedPos([lat, lng]);
     }
   };
 
-  // ✅ HÀM XÁC NHẬN CHỌN VỊ TRÍ TRÊN BẢN ĐỒ
   const confirmLocation = () => {
     if (selectedPos) {
       setLat(selectedPos[0]);
@@ -110,8 +101,8 @@ const PostComposer = ({ onPostSuccess }) => {
         lat, lng  
       };
 
-      const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      await axios.post('http://localhost:5000/api/posts', postData, config);
+      // ✅ 2. GỌI API RÚT GỌN (Đã bỏ localhost:5000 và bỏ luôn phần gắn Token thủ công)
+      await api.post('/posts', postData);
 
       setFormData({ title: '', content: '', price: '', category: 'Điện thoại', condition: 'Cũ', area: '' });
       setImages([]); setPreview([]); setLat(null); setLng(null); setLocationName("");
@@ -140,7 +131,6 @@ const PostComposer = ({ onPostSuccess }) => {
               placeholder="Khu vực (VD: Quận 1, TP.HCM)..."
               className="flex-1 bg-gray-50 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-200 border border-gray-100"
             />
-            {/* NÚT MỞ BẢN ĐỒ */}
             <button 
               type="button" 
               onClick={handleOpenMap}
@@ -153,7 +143,6 @@ const PostComposer = ({ onPostSuccess }) => {
           </div>
         </div>
 
-        {/* ... (Các phần form Hàng 2, Hàng 3, Thêm ảnh giữ nguyên) ... */}
         <div className="flex gap-3 mb-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-blue-500 flex-shrink-0 flex items-center justify-center text-white font-bold text-xs shadow-sm">
             {user ? user.name.charAt(0).toUpperCase() : 'TZ'}
@@ -165,7 +154,6 @@ const PostComposer = ({ onPostSuccess }) => {
           />
         </div>
 
-        {/* ... (Hàng 3: Giá, Danh mục, Tình trạng ở trên) ... */}
         <div className="grid grid-cols-3 gap-3 mb-4">
           <input type="number" name="price" value={formData.price} onChange={handleChange} placeholder="Giá bán (VNĐ)..." className="bg-gray-50 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-purple-200 border border-gray-100 font-bold text-red-600"/>
           <select name="category" value={formData.category} onChange={handleChange} className="bg-gray-50 rounded-lg p-2 text-sm outline-none border border-gray-100">
@@ -181,7 +169,6 @@ const PostComposer = ({ onPostSuccess }) => {
           </select>
         </div>
 
-        {/* ✅ CHÈN LẠI VÙNG HIỂN THỊ ẢNH PREVIEW VÀO ĐÂY LÀ HẾT LỖI */}
         {preview.length > 0 && (
           <div className="grid grid-cols-4 gap-2 mb-4">
             {preview.map((url, i) => (
@@ -198,14 +185,12 @@ const PostComposer = ({ onPostSuccess }) => {
           </div>
         )}
 
-        {/* Thanh công cụ dưới cùng (Nút Thêm ảnh và Đăng tin) */}
         <div className="flex justify-between items-center border-t pt-3">
           <label className="flex items-center gap-2 text-gray-600 hover:bg-gray-100 px-3 py-2 rounded-lg cursor-pointer transition-colors">
             <FaCamera className="text-green-500" />
             <span className="text-sm font-medium">Thêm ảnh</span>
             <input type="file" multiple hidden onChange={handleImageChange} accept="image/*" />
           </label>
-          {/* ... nút submit ... */}
 
           <button 
             onClick={handleSubmit} disabled={isLoading}
@@ -216,11 +201,9 @@ const PostComposer = ({ onPostSuccess }) => {
         </div>
       </div>
 
-      {/* ✅ MODAL HIỂN THỊ BẢN ĐỒ LEAFLET */}
       {showMapModal && (
         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col animation-fade-in">
-            {/* Header */}
             <div className="p-4 border-b flex justify-between items-center bg-gray-50">
               <div>
                 <h3 className="font-bold text-gray-800 flex items-center gap-2">
@@ -233,7 +216,6 @@ const PostComposer = ({ onPostSuccess }) => {
               </button>
             </div>
             
-            {/* Bản đồ */}
             <div className="h-[60vh] w-full relative bg-gray-100">
               <MapContainer center={mapCenter} zoom={16} style={{ height: '100%', width: '100%', zIndex: 10 }}>
                 <TileLayer
@@ -245,7 +227,6 @@ const PostComposer = ({ onPostSuccess }) => {
               </MapContainer>
             </div>
 
-            {/* Footer / Buttons */}
             <div className="p-4 bg-white border-t flex justify-end gap-3 items-center">
               {!selectedPos && <span className="text-sm text-orange-500 italic mr-auto">Vui lòng click vào bản đồ để chọn vị trí!</span>}
               <button onClick={() => setShowMapModal(false)} className="px-5 py-2.5 rounded-xl text-gray-600 bg-gray-100 hover:bg-gray-200 font-medium transition">

@@ -1,7 +1,8 @@
 // client/src/pages/Admin/AIInsights.jsx
 import React, { useState } from 'react';
-import axios from 'axios';
 import { FaUserFriends, FaChartLine, FaRobot, FaLightbulb } from 'react-icons/fa';
+// ✅ 1. Import 'api' xịn sò thay cho 'axios' mặc định
+import api from '../../services/api'; 
 
 const AIInsights = () => {
   const [analysisResult, setAnalysisResult] = useState("");
@@ -15,30 +16,16 @@ const AIInsights = () => {
     setAnalysisResult(""); // Xóa kết quả cũ để hiện loading
 
     try {
-      // 1. Lấy Token Admin từ LocalStorage
-      const userInfo = localStorage.getItem("userInfo") 
-        ? JSON.parse(localStorage.getItem("userInfo")) 
-        : null;
+      // ✅ 2. Bỏ đoạn code lấy Token thủ công đi vì api.js đã tự động lo việc đó rồi!
 
-      if (!userInfo || !userInfo.token) {
-        alert("Vui lòng đăng nhập quyền Admin!");
-        return;
-      }
-
-      const config = {
-        headers: { 
-          Authorization: `Bearer ${userInfo.token}`,
-          "Content-Type": "application/json"
-        }
-      };
-
-      // 2. Chọn URL API dựa trên nút bấm
+      // ✅ 3. Xóa chữ localhost:5000, chỉ giữ lại đường dẫn phụ
       let url = "";
-      if (type === 'customer') url = "http://localhost:5000/api/ai/admin/analyze-customer";
-      if (type === 'strategy') url = "http://localhost:5000/api/ai/admin/analyze-strategy";
+      if (type === 'customer') url = "/ai/admin/analyze-customer";
+      if (type === 'strategy') url = "/ai/admin/analyze-strategy";
 
-      // 3. Gọi Backend
-      const { data } = await axios.post(url, {}, config);
+      // ✅ 4. Gọi Backend cực kỳ ngắn gọn
+      const { data } = await api.post(url, {});
+      
       setAnalysisResult(data.analysis);
       
     } catch (error) {

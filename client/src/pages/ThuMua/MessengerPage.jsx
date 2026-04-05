@@ -1,12 +1,15 @@
 // client/src/pages/ThuMua/MessengerPage.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import axios from 'axios';
+// ✅ 1. Import api xịn thay cho axios
+import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import io from 'socket.io-client';
 import { FaPaperPlane, FaUserCircle, FaArrowLeft, FaMobileAlt } from 'react-icons/fa';
 
-const socket = io('http://localhost:5000');
+// ✅ 2. Thiết lập Socket.io linh hoạt theo môi trường (Tự động lấy từ .env và cắt đuôi /api)
+const socketUrl = import.meta.env.VITE_API_URL.replace('/api', '');
+const socket = io(socketUrl);
 
 const MessengerPage = () => {
   const { user } = useAuth();
@@ -19,15 +22,13 @@ const MessengerPage = () => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   
-  // ✅ 1. SỬA LẠI REF CHO TOÀN BỘ KHUNG CHAT
   const chatContainerRef = useRef(null);
 
   useEffect(() => {
     const fetchConversations = async () => {
       try {
-        const { data } = await axios.get('http://localhost:5000/api/chats', {
-          headers: { Authorization: `Bearer ${user.token}` }
-        });
+        // ✅ 3. Gọi API siêu ngắn gọn, không cần nhét Token thủ công
+        const { data } = await api.get('/chats');
         setConversations(data);
 
         if (initialChatId) {
@@ -50,9 +51,8 @@ const MessengerPage = () => {
       if (!currentChat || !user || !user.token) return; 
 
       try {
-        const { data } = await axios.get(`http://localhost:5000/api/chats/${currentChat._id}`, {
-          headers: { Authorization: `Bearer ${user.token}` }
-        });
+        // ✅ 4. Gọi API siêu ngắn gọn
+        const { data } = await api.get(`/chats/${currentChat._id}`);
         setMessages(data);
         socket.emit('join_chat', currentChat._id); 
       } catch (error) {
@@ -63,29 +63,25 @@ const MessengerPage = () => {
     fetchMessages();
   }, [currentChat, user]);
 
-  // 3. Lắng nghe tin nhắn mới từ Socket.io
   useEffect(() => {
     const messageHandler = (message) => {
       if (currentChat && currentChat._id === message.conversationId) {
         setMessages((prev) => {
-          // ✅ FIX LỖI NHÂN ĐÔI: Kiểm tra xem tin nhắn này đã tồn tại trên màn hình chưa (check bằng _id)
           const isDuplicate = prev.some((m) => m._id === message._id);
           
           if (isDuplicate) {
-            return prev; // Nếu trùng rồi thì lờ nó đi
+            return prev; 
           }
-          return [...prev, message]; // Nếu chưa có thì mới thêm vào
+          return [...prev, message]; 
         });
       }
     };
 
-    // Bật lắng nghe
     socket.on('receive_message', messageHandler);
 
-    // Dọn dẹp khi component unmount hoặc đổi phòng chat
     return () => socket.off('receive_message', messageHandler);
   }, [currentChat]);
-  // ✅ 2. SỬA LẠI LOGIC CUỘN (CHỈ CUỘN BÊN TRONG KHUNG CHAT)
+
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -97,10 +93,11 @@ const MessengerPage = () => {
     if (!newMessage.trim() || !currentChat) return;
 
     try {
-      const { data } = await axios.post('http://localhost:5000/api/chats/message', 
-        { conversationId: currentChat._id, text: newMessage },
-        { headers: { Authorization: `Bearer ${user.token}` } }
-      );
+      // ✅ 5. Post tin nhắn không cần truyền headers cấu hình nữa
+      const { data } = await api.post('/chats/message', { 
+        conversationId: currentChat._id, 
+        text: newMessage 
+      });
 
       const receiver = currentChat.participants.find(p => p._id !== user._id);
       socket.emit('send_message', {
@@ -188,19 +185,16 @@ const MessengerPage = () => {
                     <img src={currentChat.post.images[0]} alt="sp" className="w-8 h-8 rounded object-cover" />
                     <div className="text-xs text-right hidden md:block">
                       <p className="font-bold text-gray-700 truncate w-32">{currentChat.post.title}</p>
-                      {/* ✅ 3. SỬA LỖI NaN BẰNG CÁCH THÊM || 0 */}
                       <p className="text-red-500 font-bold">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(currentChat.post.price || 0)}</p>
                     </div>
                   </Link>
                 )}
               </div>
 
-              {/* ✅ 4. GẮN chatContainerRef VÀO ĐÂY, THÊM scroll-smooth */}
               <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 bg-gray-50 flex flex-col gap-3 scroll-smooth">
                 {messages.map((m, i) => {
                   const isMe = m.sender._id === user._id;
                   return (
-                    // ✅ 5. BỎ ref={scrollRef} TẠI DIV NÀY
                     <div key={i} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                       <div className={`px-4 py-2.5 rounded-2xl max-w-[70%] text-sm shadow-sm ${isMe ? 'bg-purple-600 text-white rounded-tr-sm' : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm'}`}>
                         {m.text}

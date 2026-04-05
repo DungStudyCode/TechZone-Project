@@ -1,6 +1,7 @@
 // client/src/pages/ThuMua/ThuMuaPage.jsx
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+// ✅ 1. Import api thay cho axios
+import api from '../../services/api'; 
 import PostComposer from '../../components/ThuMua/PostComposer';
 import PostCard from '../../components/ThuMua/PostCard';
 import { FaMapMarkerAlt } from 'react-icons/fa';
@@ -10,26 +11,24 @@ const ThuMuaPage = () => {
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0); 
 
-  // ✅ 1. BỔ SUNG STATE CHO TÌM KIẾM QUANH ĐÂY (GEOLOCATION)
-  const [radius, setRadius] = useState(""); // Rỗng = Toàn quốc, Có số = Tìm theo KM
+  const [radius, setRadius] = useState(""); 
   const [userLat, setUserLat] = useState(null);
   const [userLng, setUserLng] = useState(null);
   const [locationStatus, setLocationStatus] = useState("");
 
-  // ✅ 2. CẬP NHẬT LẠI useEffect ĐỂ GỬI KÈM TỌA ĐỘ NẾU CÓ CHỌN BÁN KÍNH
   useEffect(() => {
     const fetchPosts = async () => {
       setLoading(true);
       try {
         const params = {};
-        // Nếu người dùng chọn bán kính và đã có tọa độ thì truyền vào API
         if (radius && userLat && userLng) {
           params.radius = radius;
           params.lat = userLat;
           params.lng = userLng;
         }
 
-        const { data } = await axios.get('http://localhost:5000/api/posts', { params });
+        // ✅ 2. Gọi API siêu ngắn gọn, đã dọn sạch localhost
+        const { data } = await api.get('/posts', { params });
         setPosts(data);
       } catch (error) {
         console.error('Lỗi khi lấy tin đăng:', error);
@@ -39,12 +38,11 @@ const ThuMuaPage = () => {
     };
 
     fetchPosts();
-  }, [refreshTrigger, radius, userLat, userLng]); // Fetch lại khi bán kính thay đổi
+  }, [refreshTrigger, radius, userLat, userLng]); 
 
-  // ✅ 3. HÀM XỬ LÝ KHI NGƯỜI DÙNG CHỌN "QUANH ĐÂY"
   const handleFindNearMe = (selectedRadius) => {
     if (selectedRadius === "") {
-      setRadius(""); // Về Toàn quốc
+      setRadius(""); 
       return;
     }
 
@@ -61,7 +59,7 @@ const ThuMuaPage = () => {
           console.warn("Lỗi lấy vị trí:", error);
           setLocationStatus("Lỗi định vị!");
           alert("Vui lòng cấp quyền truy cập vị trí để tìm quanh đây!");
-          setRadius(""); // Reset về Toàn quốc
+          setRadius(""); 
         }
       );
     } else {
@@ -73,7 +71,6 @@ const ThuMuaPage = () => {
     <div className="bg-gray-50 min-h-screen py-8">
       <div className="max-w-4xl mx-auto px-4">
         
-        {/* Phần Tiêu đề trang */}
         <div className="mb-6 border-b border-gray-200 pb-4">
           <h1 className="text-3xl font-black text-gray-800 uppercase italic tracking-wide">
             Chợ Công Nghệ <span className="text-purple-600">TechZone</span>
@@ -83,10 +80,8 @@ const ThuMuaPage = () => {
           </p>
         </div>
 
-        {/* Khung đăng bài kiểu Facebook */}
         <PostComposer onPostSuccess={() => setRefreshTrigger(prev => prev + 1)} />
 
-        {/* Khu vực danh sách tin đăng */}
         <div className="mt-8">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -94,7 +89,6 @@ const ThuMuaPage = () => {
               {locationStatus === "Đang định vị..." && <span className="text-sm font-normal text-purple-500 animate-pulse">(Đang quét radar...)</span>}
             </h2>
             
-            {/* ✅ BỘ LỌC TÌM QUANH ĐÂY */}
             <div className="flex bg-white rounded-lg shadow-sm border border-gray-200 p-1">
               <div className="flex items-center px-3 text-gray-400 border-r border-gray-100">
                 <FaMapMarkerAlt className={radius ? "text-red-500" : ""} />
@@ -112,7 +106,6 @@ const ThuMuaPage = () => {
             </div>
           </div>
           
-          {/* XỬ LÝ GIAO DIỆN THEO TRẠNG THÁI DỮ LIỆU */}
           {loading ? (
             <div className="text-center py-10 text-gray-500 font-medium animate-pulse">
               Đang tải danh sách tin đăng...

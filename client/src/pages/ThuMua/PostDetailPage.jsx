@@ -1,7 +1,8 @@
 // client/src/pages/ThuMua/PostDetailPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+// ✅ 1. Import api xịn thay cho axios
+import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { FaUserCircle, FaArrowLeft, FaCommentDots, FaTrash, FaCheckCircle, FaUndo, FaMapMarkerAlt } from 'react-icons/fa';
 
@@ -14,7 +15,8 @@ const PostDetailPage = () => {
   useEffect(() => {
     const fetchPost = async () => {
       try {
-        const { data } = await axios.get(`http://localhost:5000/api/posts/${id}`);
+        // ✅ 2. Bỏ localhost, gọi api cực ngắn
+        const { data } = await api.get(`/posts/${id}`);
         setPost(data);
       } catch (error) {
         console.error("Lỗi lấy chi tiết:", error);
@@ -28,11 +30,11 @@ const PostDetailPage = () => {
     if (post.author && user._id === post.author._id) return alert('Đây là bài đăng của chính bạn mà!');
 
     try {
-      const { data } = await axios.post(
-        'http://localhost:5000/api/chats', 
-        { postId: post._id, sellerId: post.author._id },
-        { headers: { Authorization: `Bearer ${user.token}` } }
-      );
+      // ✅ 3. Bỏ localhost và bỏ luôn việc truyền Header thủ công
+      const { data } = await api.post('/chats', { 
+        postId: post._id, 
+        sellerId: post.author._id 
+      });
       navigate(`/messenger?chatId=${data._id}`);
     } catch (error) {
       console.error(error);
@@ -42,9 +44,8 @@ const PostDetailPage = () => {
 
   const handleToggleStatus = async () => {
     try {
-      const { data } = await axios.put(`http://localhost:5000/api/posts/${post._id}/status`, {}, {
-        headers: { Authorization: `Bearer ${user.token}` }
-      });
+      // ✅ 4. Gọi api đổi trạng thái sạch sẽ
+      const { data } = await api.put(`/posts/${post._id}/status`, {});
       setPost(data); 
     } catch (error) {
       console.error("Lỗi chi tiết:", error);
@@ -55,9 +56,8 @@ const PostDetailPage = () => {
   const handleDeletePost = async () => {
     if (window.confirm('Bạn có chắc chắn muốn xóa bài đăng này vĩnh viễn không?')) {
       try {
-        await axios.delete(`http://localhost:5000/api/posts/${post._id}`, {
-          headers: { Authorization: `Bearer ${user.token}` }
-        });
+        // ✅ 5. Gọi api xóa sạch sẽ
+        await api.delete(`/posts/${post._id}`);
         alert('Đã xóa thành công!');
         navigate('/thu-mua'); 
       } catch (error) {
@@ -71,7 +71,6 @@ const PostDetailPage = () => {
 
   const isOwnerOrAdmin = user && (user.isAdmin || user._id === post.author?._id);
   
-  // ✅ ĐÃ SỬA LỖI Ở ĐÂY: Khớp với Database (dùng 'sold' thay vì 'Đã bán')
   const isSoldOut = post.status === 'sold';
 
   return (
@@ -124,7 +123,7 @@ const PostDetailPage = () => {
                     height="100%"
                     frameBorder="0"
                     style={{ border: 0 }}
-                    src={`https://maps.google.com/maps?q=${post.location.coordinates[1]},${post.location.coordinates[0]}&t=&z=16&ie=UTF8&iwloc=&output=embed`}
+                    src={`https://maps.google.com/maps?q=$${post.location.coordinates[1]},${post.location.coordinates[0]}&t=&z=16&ie=UTF8&iwloc=&output=embed`}
                     allowFullScreen
                     title="Bản đồ vị trí người bán"
                   ></iframe>

@@ -1,145 +1,159 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { FaHeart, FaTrash, FaShoppingCart, FaHeartBroken, FaArrowRight } from 'react-icons/fa';
-import api from '../../services/api';
-import { useCart } from '../../contexts/CartContext';
-import { useAuth } from '../../contexts/AuthContext';
+//client/src/pages/Product/Wishlist.jsx
+import React, { useState } from "react";
+import { 
+  FaSearch, FaShippingFast, FaShieldAlt, FaUndo, FaQuestionCircle, 
+  FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, FaChevronDown, FaPaperPlane 
+} from "react-icons/fa";
 
-const Wishlist = () => {
-  const [wishlist, setWishlist] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const { addToCart } = useCart();
-  const { user } = useAuth();
+const Support = () => {
+  const [activeIndex, setActiveIndex] = useState(null);
 
-  // 1. Gọi API lấy danh sách yêu thích khi load trang
-  useEffect(() => {
-    const fetchWishlist = async () => {
-      try {
-        const config = { headers: { Authorization: `Bearer ${user.token}` } };
-        const { data } = await api.get('/users/wishlist', config);
-        setWishlist(data);
-      } catch (error) {
-        console.error("Lỗi tải wishlist:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (user) fetchWishlist();
-  }, [user]);
-
-  // 2. Xóa sản phẩm khỏi Wishlist
-  const removeFromWishlist = async (productId) => {
-    try {
-      const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      // Gọi API toggle (vì sản phẩm đang có trong list, toggle sẽ tự thành xóa)
-      await api.post('/users/wishlist', { productId }, config);
-      
-      // Cập nhật lại UI ngay lập tức
-      setWishlist(wishlist.filter(item => item._id !== productId));
-    } catch (error) {
-      console.error("Lỗi xóa khỏi wishlist:", error);
+  const faqs = [
+    {
+      q: "TechZone có giao hàng trong ngày không?",
+      a: "Dạ có! Với các đơn hàng nội thành Hà Nội và TP.HCM, chúng tôi hỗ trợ giao nhanh trong 2h-4h kể từ khi xác nhận đơn hàng."
+    },
+    {
+      q: "Chính sách bảo hành iPhone tại TechZone như thế nào?",
+      a: "Tất cả iPhone chính hãng tại TechZone được bảo hành 12 tháng theo tiêu chuẩn Apple Việt Nam. Ngoài ra, chúng tôi tặng gói bảo hành 1 đổi 1 trong 30 ngày đầu nếu có lỗi phần cứng."
+    },
+    {
+      q: "Tôi có được kiểm tra hàng trước khi thanh toán không?",
+      a: "Hoàn toàn được! Bạn có quyền mở hộp kiểm tra ngoại quan sản phẩm trước khi thanh toán cho Shipper để đảm bảo hàng không móp méo, trầy xước."
+    },
+    {
+      q: "TechZone có hỗ trợ trả góp 0% không?",
+      a: "Chúng tôi hỗ trợ trả góp 0% qua thẻ tín dụng của hơn 20 ngân hàng phổ biến hoặc trả góp qua các công ty tài chính như Home Credit, FE Credit."
     }
+  ];
+
+  const toggleFAQ = (index) => {
+    setActiveIndex(activeIndex === index ? null : index);
   };
 
-  const formatPrice = (price) => 
-    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
-
-  if (!user) return (
-    <div className="min-h-[70vh] flex flex-col items-center justify-center bg-gray-50">
-       <h2 className="text-2xl font-bold mb-4">Vui lòng đăng nhập!</h2>
-       <p className="text-gray-500 mb-6">Bạn cần đăng nhập để xem danh sách sản phẩm yêu thích.</p>
-       <Link to="/login" className="px-8 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700">Đăng nhập ngay</Link>
-    </div>
-  );
-
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4 font-sans">
-      <div className="container mx-auto max-w-6xl animate-fade-in-up">
-        
-        {/* HEADER */}
-        <div className="flex items-center gap-4 mb-8">
-          <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center text-red-500 shadow-sm border border-red-200">
-            <FaHeart size={28} className="animate-pulse" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-black text-gray-800 tracking-tight">Sản phẩm yêu thích</h1>
-            <p className="text-gray-500 font-medium mt-1">Lưu trữ những món đồ công nghệ bạn muốn sở hữu ({wishlist.length} sản phẩm)</p>
+    <div className="min-h-screen bg-gray-50 font-sans pb-20">
+      
+      {/* 1. HERO SECTION: SEARCH */}
+      <div className="bg-gradient-to-r from-purple-700 to-blue-600 py-16 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          <h1 className="text-3xl md:text-5xl font-black text-white mb-6 tracking-tight">
+            TechZone có thể giúp gì cho bạn?
+          </h1>
+          <div className="relative max-w-2xl mx-auto">
+            <FaSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
+            <input 
+              type="text" 
+              placeholder="Nhập vấn đề bạn đang gặp phải (ví dụ: Bảo hành, Giao hàng...)"
+              className="w-full py-5 pl-14 pr-6 rounded-2xl shadow-2xl outline-none text-lg font-medium focus:ring-4 focus:ring-white/20 transition-all"
+            />
           </div>
         </div>
+      </div>
 
-        {/* LOADING STATE */}
-        {loading ? (
-           <div className="flex justify-center items-center py-20">
-             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600"></div>
-           </div>
-        ) : wishlist.length === 0 ? (
-          /* EMPTY STATE */
-          <div className="bg-white rounded-[2rem] p-16 text-center shadow-sm border border-gray-100 flex flex-col items-center">
-            <div className="w-32 h-32 bg-gray-50 rounded-full flex items-center justify-center mb-6 text-gray-300">
-              <FaHeartBroken size={60} />
+      <div className="max-w-6xl mx-auto px-4 -mt-10">
+        
+        {/* 2. QUICK CATEGORIES */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+          {[
+            { icon: <FaShippingFast />, title: "Vận chuyển", desc: "Theo dõi & Phí ship", color: "text-blue-500 bg-blue-50" },
+            { icon: <FaShieldAlt />, title: "Bảo hành", desc: "Chính sách hậu mãi", color: "text-purple-500 bg-purple-50" },
+            { icon: <FaUndo />, title: "Đổi trả", desc: "Quy trình hoàn tiền", color: "text-red-500 bg-red-50" },
+            { icon: <FaQuestionCircle />, title: "Hướng dẫn", desc: "Cách thức mua hàng", color: "text-green-500 bg-green-50" },
+          ].map((item, idx) => (
+            <div key={idx} className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col items-center text-center hover:shadow-xl transition-all cursor-pointer group">
+              <div className={`w-16 h-16 rounded-2xl ${item.color} flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform`}>
+                {item.icon}
+              </div>
+              <h3 className="font-bold text-gray-800 text-lg mb-1">{item.title}</h3>
+              <p className="text-gray-400 text-sm font-medium">{item.desc}</p>
             </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Chưa có sản phẩm nào!</h2>
-            <p className="text-gray-500 mb-8 max-w-md">Danh sách yêu thích của bạn đang trống. Hãy lướt một vòng TechZone và "thả tim" cho những siêu phẩm bạn ưng ý nhé.</p>
-            <Link to="/products" className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-3.5 rounded-xl font-bold hover:shadow-lg transition-all hover:-translate-y-1">
-              Đi mua sắm ngay <FaArrowRight />
-            </Link>
-          </div>
-        ) : (
-          /* DANH SÁCH SẢN PHẨM ĐÃ LƯU */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {wishlist.map((product) => (
-              <div key={product._id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col group">
-                
-                {/* Nút Xóa (Góc phải) */}
-                <div className="flex justify-end mb-2">
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          
+          {/* 3. FAQ SECTION (Accordion) */}
+          <div className="lg:col-span-2">
+            <h2 className="text-2xl font-black text-gray-800 mb-8 flex items-center gap-3">
+              <span className="w-2 h-8 bg-purple-600 rounded-full"></span>
+              Câu hỏi thường gặp
+            </h2>
+            <div className="space-y-4">
+              {faqs.map((faq, idx) => (
+                <div key={idx} className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
                   <button 
-                    onClick={() => removeFromWishlist(product._id)}
-                    className="p-2 text-gray-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors"
-                    title="Bỏ yêu thích"
+                    onClick={() => toggleFAQ(idx)}
+                    className="w-full p-5 flex justify-between items-center text-left hover:bg-gray-50 transition-colors"
                   >
-                    <FaTrash size={14} />
+                    <span className="font-bold text-gray-700">{faq.q}</span>
+                    <FaChevronDown className={`text-gray-400 transition-transform duration-300 ${activeIndex === idx ? 'rotate-180' : ''}`} />
                   </button>
-                </div>
-
-                {/* Ảnh sản phẩm */}
-                <Link to={`/product/${product._id}`} className="block h-48 bg-gray-50 rounded-xl mb-4 p-4 flex items-center justify-center relative overflow-hidden">
-                  <img src={product.image} alt={product.name} className="max-h-full max-w-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-500" />
-                </Link>
-
-                {/* Thông tin */}
-                <div className="flex flex-col flex-1">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{product.brand}</span>
-                  <Link to={`/product/${product._id}`}>
-                    <h3 className="font-bold text-gray-800 line-clamp-2 hover:text-purple-600 transition-colors h-10">{product.name}</h3>
-                  </Link>
-                  
-                  <div className="mt-auto pt-4 flex items-center justify-between">
-                    <span className="text-lg font-black text-red-600 drop-shadow-sm">
-                      {formatPrice(product.price)}
-                    </span>
-                    
-                    {/* Nút thêm giỏ hàng */}
-                    {product.countInStock > 0 ? (
-                      <button 
-                        onClick={() => addToCart(product, 1)}
-                        className="w-10 h-10 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center hover:bg-purple-600 hover:text-white transition-all shadow-sm"
-                        title="Thêm vào giỏ"
-                      >
-                        <FaShoppingCart size={16} />
-                      </button>
-                    ) : (
-                      <span className="text-[10px] font-black text-red-500 bg-red-50 px-2 py-1 rounded-md">HẾT HÀNG</span>
-                    )}
+                  <div className={`transition-all duration-300 overflow-hidden ${activeIndex === idx ? 'max-h-40 border-t border-gray-50' : 'max-h-0'}`}>
+                    <p className="p-5 text-gray-500 leading-relaxed font-medium">
+                      {faq.a}
+                    </p>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        )}
+
+          {/* 4. CONTACT SECTION */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 sticky top-24">
+              <h2 className="text-2xl font-black text-gray-800 mb-6">Liên hệ trực tiếp</h2>
+              <div className="space-y-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0">
+                    <FaPhoneAlt />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Hotline 24/7</p>
+                    <p className="font-bold text-gray-800 text-lg">0818 284 523</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center shrink-0">
+                    <FaEnvelope />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Email hỗ trợ</p>
+                    <p className="font-bold text-gray-800">support@techzone.vn</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-red-50 text-red-600 rounded-xl flex items-center justify-center shrink-0">
+                    <FaMapMarkerAlt />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Trụ sở chính</p>
+                    <p className="font-bold text-gray-800 text-sm leading-relaxed">Sơn Trà, TP-Đà Nẵng</p>
+                  </div>
+                </div>
+
+                <hr className="border-gray-50 my-6" />
+
+                <div className="bg-gray-50 p-6 rounded-2xl">
+                  <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <FaPaperPlane className="text-purple-600 text-sm" /> Gửi tin nhắn nhanh
+                  </h4>
+                  <input type="email" placeholder="Email của bạn" className="w-full bg-white border border-gray-200 rounded-xl py-3 px-4 mb-3 outline-none focus:border-purple-400" />
+                  <textarea placeholder="Bạn cần giúp gì?" rows="3" className="w-full bg-white border border-gray-200 rounded-xl py-3 px-4 mb-4 outline-none focus:border-purple-400"></textarea>
+                  <button className="w-full bg-purple-600 text-white font-bold py-3 rounded-xl hover:bg-purple-700 transition shadow-lg shadow-purple-100">
+                    Gửi yêu cầu
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
   );
 };
 
-export default Wishlist;
+export default Support;

@@ -10,7 +10,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 
 // ✅ 2. Lấy Key từ file .env
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-console.log("GOOGLE CLIENT ID LÀ:", clientId); // Thêm dòng này để kiểm tra giá trị clientId
+//console.log("GOOGLE CLIENT ID LÀ:", clientId); // Thêm dòng này để kiểm tra giá trị clientId
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

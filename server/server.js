@@ -14,18 +14,47 @@ const orderRoutes = require('./routes/orderRoutes');
 const userRoutes = require('./routes/userRoutes'); 
 const aiRoutes = require('./routes/aiRoutes'); 
 const postRoutes = require('./routes/postRoutes'); 
-const chatRoutes = require('./routes/chatRoutes'); // ✅ 1. BỔ SUNG ROUTE CHAT
+const chatRoutes = require('./routes/chatRoutes');
 
 dotenv.config();
 const app = express();
 const server = http.createServer(app); 
-const io = new Server(server, { cors: { origin: "*" } }); 
+
+// ==========================================
+// 🚀 DANH SÁCH KHÁCH VIP ĐƯỢC PHÉP TRUY CẬP (CORS)
+// ==========================================
+const allowedOrigins = [
+  'http://localhost:5173', 
+  'https://tech-zone-project.vercel.app', 
+  'https://tech-zone-project-uk1o0bref-dungstudycss-projects.vercel.app' // Link Vercel nhánh của bạn
+];
+
+// 1. CẤU HÌNH CORS CHO API (EXPRESS)
+app.use(cors({
+  origin: function (origin, callback) {
+    // Cho phép postman, mobile app (không có origin) hoặc các link nằm trong danh sách
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Bị chặn bởi chính sách CORS!'));
+    }
+  },
+  credentials: true, // Cho phép gửi Token qua Header
+}));
+
+// 2. CẤU HÌNH CORS CHO SOCKET.IO
+const io = new Server(server, { 
+  cors: { 
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
+  } 
+});
 
 // Kết nối DB
 connectDB();
 
 // Middlewares
-app.use(cors());
 app.use(express.json());
 
 // --- CẤU HÌNH ĐƯỜNG DẪN ---
@@ -34,7 +63,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ai', aiRoutes); 
 app.use('/api/posts', postRoutes); 
-app.use('/api/chats', chatRoutes); // ✅ 2. KHAI BÁO ĐƯỜNG DẪN API CHAT
+app.use('/api/chats', chatRoutes); 
 
 // --- LOGIC CHAT REALTIME 1-1 (NÂNG CẤP) ---
 io.on('connection', (socket) => {
@@ -54,8 +83,6 @@ io.on('connection', (socket) => {
 
   // 3. Xử lý khi có tin nhắn gửi đi
   socket.on('send_message', (data) => {
-    // data bao gồm: { conversationId, senderId, receiverId, text }
-    
     // Bắn tin nhắn vào phòng chat chung của 2 người để hiện ngay lập tức
     io.to(data.conversationId).emit('receive_message', data);
 

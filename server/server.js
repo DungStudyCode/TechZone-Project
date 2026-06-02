@@ -24,9 +24,11 @@ const server = http.createServer(app);
 // 🚀 DANH SÁCH KHÁCH VIP ĐƯỢC PHÉP TRUY CẬP (CORS)
 // ==========================================
 const allowedOrigins = [
-  'http://localhost:5173', 
+'http://localhost:5173', 
   'https://tech-zone-project.vercel.app', 
-  'https://tech-zone-project-uk1o0bref-dungstudycss-projects.vercel.app' // Link Vercel nhánh của bạn
+  'https://tech-zone-project-uk1o0bref-dungstudycss-projects.vercel.app',
+  'https://techzoneshop.online',
+  'https://www.techzoneshop.online'
 ];
 
 // 1. CẤU HÌNH CORS CHO API (EXPRESS)

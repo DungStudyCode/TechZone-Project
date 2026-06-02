@@ -18,7 +18,7 @@ const Home = () => {
       try {
         const url = keyword ? `/products?keyword=${keyword}` : '/products';
         const { data } = await api.get(url);
-        setProducts(data);
+        setProducts(data.products || data.data || []);
       } catch (error) {
         console.error("Lỗi tải sản phẩm:", error);
       } finally {

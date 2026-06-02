@@ -92,66 +92,49 @@ const getOrderById = async (req, res) => {
   }
 };
 
-// PUT /api/orders/:id/confirm
-// Admin xác nhận đơn hàng
-const confirmOrder = async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id);
-
-    if (order) {
-      // Đổi trạng thái sang Confirmed (Đã xác nhận)
-      order.status = 'Confirmed';
-      
-      const updatedOrder = await order.save();
-      res.json(updatedOrder);
-    } else {
-      res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
-    }
-  } catch (error) {
-    res.status(500).json({ message: 'Lỗi khi xác nhận đơn: ' + error.message });
-  }
-};
-
-// PUT /api/orders/:id/deliver
-// Admin cập nhật trạng thái giao hàng
+// PUT /api/orders/:id/status
 const updateOrderStatus = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
 
     if (order) {
-      order.isDelivered = true;
-      order.deliveredAt = Date.now();
-      order.status = req.body.status || 'Delivered';
+      // 1. Cập nhật trạng thái bằng text Frontend gửi lên
+      order.status = req.body.status; 
+      
+      // 2. Logic xử lý riêng cho từng mốc trạng thái quan trọng
+      switch (req.body.status) {
+        case 'Đang xử lý':
+          // Admin bắt đầu gói hàng (Có thể gửi email thông báo khách ở đây nếu muốn)
+          break;
+          
+        case 'Đang giao hàng':
+          // Giao cho shipper
+          break;
 
-      const updatedOrder = await order.save();
-      res.json(updatedOrder);
-    } else {
-      res.status(404).json({ message: 'Order not found' });
-    }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+        case 'Đã giao hàng':
+          order.isDelivered = true;
+          order.deliveredAt = Date.now();
+          
+          // Nếu là ship COD, khi giao thành công thì auto xác nhận đã nhận tiền
+          if (order.paymentMethod === 'COD') {
+            order.isPaid = true;
+            order.paidAt = Date.now();
+          }
+          break;
 
-// ✅ THÊM MỚI: Khách hàng xác nhận đã nhận hàng (Success)
-// PUT /api/orders/:id/success
-const markOrderAsSuccess = async (req, res) => {
-  try {
-    const order = await Order.findById(req.params.id);
-    if (order) {
-      order.status = 'Success';
-      // Nếu là COD, khi khách nhận hàng thành công thì coi như đã thanh toán
-      if (order.paymentMethod === 'COD') {
-        order.isPaid = true;
-        order.paidAt = Date.now();
+        case 'Đã hủy':
+        case 'Hoàn trả/Hoàn tiền':
+          // Logic cộng lại số lượng sản phẩm vào kho (tùy chọn)
+          break;
       }
+
       const updatedOrder = await order.save();
       res.json(updatedOrder);
     } else {
       res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: 'Lỗi cập nhật trạng thái: ' + error.message });
   }
 };
 
@@ -224,8 +207,6 @@ module.exports = {
   getAllOrders, 
   getMyOrders, 
   getOrderById, 
-  confirmOrder, 
-  updateOrderStatus, 
-  markOrderAsSuccess, // ✅ Đã xuất hàm này ra
+  updateOrderStatus, // ✅ Chỉ cần xuất 1 hàm này để quản lý trạng thái
   getDashboardStats 
 };

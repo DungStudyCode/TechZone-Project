@@ -2,17 +2,14 @@
 const express = require('express');
 const router = express.Router();
 
-// 1. SỬA LỖI CHÍNH TẢ Ở ĐÂY: getOrderById (Thêm chữ 'r')
+// ✅ Chỉ import những hàm đang thực sự được dùng từ Controller
 const { 
   createOrder, 
   getAllOrders, 
   getMyOrders,
-  getOrderById, // ✅ Đã sửa từ getOderById thành getOrderById
-  updateOrderStatus,
-  getDashboardStats,
-  confirmOrder, // ✅ Thêm dòng này
-  markOrderAsSuccess // ✅ Thêm dòng này
-
+  getOrderById, 
+  updateOrderStatus, // Hàm All-in-one quản lý trạng thái
+  getDashboardStats
 } = require('../controllers/orderController');
 
 const { protect, admin } = require('../middleware/authMiddleware');
@@ -22,19 +19,18 @@ const { protect, admin } = require('../middleware/authMiddleware');
 // ==================================================
 router.get('/dashboard-stats', protect, admin, getDashboardStats);
 
-// --- CÁC ROUTE CŨ ---
-
+// ==================================================
+// ✅ CÁC ROUTE ĐƠN HÀNG CƠ BẢN
+// ==================================================
 router.post('/', protect, createOrder); 
-
 router.get('/', protect, admin, getAllOrders);
-
 router.get('/myorders', protect, getMyOrders);
-
-// Route xem chi tiết đơn hàng (Giờ đã khớp với biến import ở trên)
 router.get('/:id', protect, getOrderById);
 
-router.put('/:id/deliver', protect, admin, updateOrderStatus);
-// ✅ ROUTE MỚI: Admin xác nhận đơn hàng
-router.put('/:id/confirm', protect, admin, confirmOrder);
-router.put('/:id/success', protect, markOrderAsSuccess);
+// ==================================================
+// ✅ ROUTE CẬP NHẬT TRẠNG THÁI (MỚI)
+// ==================================================
+// Gom 3 route cũ (deliver, confirm, success) thành 1 route duy nhất
+router.put('/:id/status', protect, admin, updateOrderStatus);
+
 module.exports = router;

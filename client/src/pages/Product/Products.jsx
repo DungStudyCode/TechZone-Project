@@ -34,7 +34,7 @@ const Products = () => {
         // Đã gỡ phần gửi Brand lên API để lấy TOÀN BỘ sản phẩm của danh mục đó về
 
         const { data } = await api.get(url + params.toString());
-        setProducts(data);
+        setProducts(data.products || data.data || []);
       } catch (error) {
         console.error("Lỗi tải sản phẩm:", error);
       } finally {

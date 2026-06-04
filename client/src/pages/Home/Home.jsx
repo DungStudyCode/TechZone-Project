@@ -1,4 +1,4 @@
-// client/src/pages/Home/Home.jsx
+// frontend/src/pages/Home/Home.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
@@ -18,7 +18,10 @@ const Home = () => {
       try {
         const url = keyword ? `/products?keyword=${keyword}` : '/products';
         const { data } = await api.get(url);
-        setProducts(data.products || data.data || []);
+        
+        // ✅ ĐÃ SỬA: Tự động nhận diện mảng dữ liệu (giống trang Admin) chống lỗi sập trang .filter
+        const finalData = Array.isArray(data) ? data : (data.products || data.data || []);
+        setProducts(finalData);
       } catch (error) {
         console.error("Lỗi tải sản phẩm:", error);
       } finally {
@@ -29,10 +32,9 @@ const Home = () => {
     fetchProducts();
   }, [keyword]);
 
-  // --- HÀM MỚI: ĐẾM SỐ LƯỢNG SẢN PHẨM THỰC TẾ THEO DANH MỤC ---
+  // --- ĐẾM SỐ LƯỢNG SẢN PHẨM THỰC TẾ THEO DANH MỤC ---
   const getCategoryCount = (categoryName) => {
     if (!products || products.length === 0) return 0;
-    // Lọc và đếm những sản phẩm có category trùng khớp
     return products.filter(product => product.category === categoryName).length;
   };
 

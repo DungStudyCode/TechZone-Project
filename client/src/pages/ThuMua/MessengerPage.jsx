@@ -1,15 +1,23 @@
-// client/src/pages/ThuMua/MessengerPage.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-// ✅ 1. Import api xịn thay cho axios
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import io from 'socket.io-client';
 import { FaPaperPlane, FaUserCircle, FaArrowLeft, FaMobileAlt } from 'react-icons/fa';
 
-// ✅ 2. Thiết lập Socket.io linh hoạt theo môi trường (Tự động lấy từ .env và cắt đuôi /api)
-const socketUrl = import.meta.env.VITE_API_URL.replace('/api', '');
-const socket = io(socketUrl);
+// ✅ ĐÃ SỬA: Khởi tạo Socket.io an toàn tuyệt đối chống crash trang
+const getSocketUrl = () => {
+    const envUrl = import.meta.env.VITE_API_URL;
+    if (envUrl) {
+        // Dùng Regex xóa chữ /api kèm hoặc không kèm dấu nháy nếu bị lỗi nạp chuỗi
+        return envUrl.replace(/'|"/g, '').replace(/\/api\/?$/, '');
+    }
+    return 'https://api.techzoneshop.online';
+};
+
+const socket = io(getSocketUrl(), {
+    transports: ['websocket', 'polling']
+});
 
 const MessengerPage = () => {
   const { user } = useAuth();
@@ -27,7 +35,6 @@ const MessengerPage = () => {
   useEffect(() => {
     const fetchConversations = async () => {
       try {
-        // ✅ 3. Gọi API siêu ngắn gọn, không cần nhét Token thủ công
         const { data } = await api.get('/chats');
         setConversations(data);
 
@@ -51,7 +58,6 @@ const MessengerPage = () => {
       if (!currentChat || !user || !user.token) return; 
 
       try {
-        // ✅ 4. Gọi API siêu ngắn gọn
         const { data } = await api.get(`/chats/${currentChat._id}`);
         setMessages(data);
         socket.emit('join_chat', currentChat._id); 
@@ -68,17 +74,13 @@ const MessengerPage = () => {
       if (currentChat && currentChat._id === message.conversationId) {
         setMessages((prev) => {
           const isDuplicate = prev.some((m) => m._id === message._id);
-          
-          if (isDuplicate) {
-            return prev; 
-          }
+          if (isDuplicate) return prev; 
           return [...prev, message]; 
         });
       }
     };
 
     socket.on('receive_message', messageHandler);
-
     return () => socket.off('receive_message', messageHandler);
   }, [currentChat]);
 
@@ -93,7 +95,6 @@ const MessengerPage = () => {
     if (!newMessage.trim() || !currentChat) return;
 
     try {
-      // ✅ 5. Post tin nhắn không cần truyền headers cấu hình nữa
       const { data } = await api.post('/chats/message', { 
         conversationId: currentChat._id, 
         text: newMessage 

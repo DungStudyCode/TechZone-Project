@@ -1,4 +1,4 @@
-// client/src/pages/Product/Products.jsx
+// frontend/src/pages/Product/Products.jsx
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
@@ -21,7 +21,6 @@ const Products = () => {
   const brand = searchParams.get('brand') || 'All';
   const sort = searchParams.get('sort') || 'newest';
 
-  // 1. GỌI API (Chỉ lấy theo Từ khóa và Danh mục, phần Hãng để Frontend lo)
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true);
@@ -31,10 +30,13 @@ const Products = () => {
         
         if (keyword) params.append('keyword', keyword);
         if (category !== 'All') params.append('category', category);
-        // Đã gỡ phần gửi Brand lên API để lấy TOÀN BỘ sản phẩm của danh mục đó về
 
         const { data } = await api.get(url + params.toString());
-        setProducts(data.products || data.data || []);
+        
+        // ✅ ĐÃ SỬA CHUẨN XÁC: Tự động nhận diện mảng dữ liệu (giống trang Admin)
+        const finalData = Array.isArray(data) ? data : (data.products || data.data || []);
+        setProducts(finalData);
+
       } catch (error) {
         console.error("Lỗi tải sản phẩm:", error);
       } finally {
@@ -43,13 +45,11 @@ const Products = () => {
     };
 
     fetchProducts();
-  }, [keyword, category]); // Xóa brand khỏi dependency của API
+  }, [keyword, category]);
 
-  // 2. HÀM XỬ LÝ SIÊU THÔNG MINH (Vừa Lọc Hãng, Vừa Sắp Xếp)
   const getProcessedProducts = () => {
     let processed = [...products]; 
     
-    // --- BƯỚC 1: LỌC HÃNG THÔNG MINH (Bỏ qua hoa thường, khoảng trắng, nhận diện bí danh) ---
     if (brand !== 'All') {
       processed = processed.filter(p => {
         if (!p.brand) return false;
@@ -57,17 +57,14 @@ const Products = () => {
         const dbBrand = p.brand.toLowerCase().trim();
         const selectedBrand = brand.toLowerCase().trim();
         
-        // Nếu chọn Apple, tự động gom luôn iPhone, iPad, Macbook
         if (selectedBrand === 'apple' && (dbBrand === 'iphone' || dbBrand === 'ipad' || dbBrand === 'macbook')) {
             return true;
         }
         
-        // So sánh chứa từ khóa (VD: gõ "Samsung" vẫn nhận "Samsung Galaxy")
         return dbBrand.includes(selectedBrand) || selectedBrand.includes(dbBrand);
       });
     }
 
-    // --- BƯỚC 2: SẮP XẾP SẢN PHẨM ---
     if (sort === 'price_asc') {
         processed.sort((a, b) => a.price - b.price); 
     } else if (sort === 'price_desc') {
@@ -81,7 +78,6 @@ const Products = () => {
     return processed;
   };
 
-  // Lấy danh sách cuối cùng đã qua Xử lý để hiển thị
   const displayProducts = getProcessedProducts();
 
   const handleCategoryChange = (newCategory) => {
@@ -105,13 +101,11 @@ const Products = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 min-h-screen font-sans">
-      
       <div className="flex flex-col mb-6 border-b border-gray-100 pb-6">
         <h1 className="text-3xl font-extrabold text-gray-800 mb-6 uppercase tracking-wider">
             {keyword ? `Kết quả cho: "${keyword}"` : (category !== 'All' ? category : 'Tất cả sản phẩm')}
         </h1>
 
-        {/* Nút lọc Danh mục */}
         <div className="flex gap-3 overflow-x-auto pb-2 w-full custom-scrollbar">
             {['All', 'Điện thoại', 'Laptop', 'Tablet', 'Phụ kiện'].map(cat => (
                 <button 
@@ -127,7 +121,6 @@ const Products = () => {
             ))}
         </div>
 
-        {/* Nút lọc Hãng */}
         {category !== 'All' && BRANDS_BY_CATEGORY[category] && (
           <div className="flex gap-3 overflow-x-auto mt-4 pt-4 border-t border-gray-50 w-full animate-fade-in-up">
               <span className="text-gray-500 font-medium py-2 text-sm flex-shrink-0">Chọn hãng:</span>

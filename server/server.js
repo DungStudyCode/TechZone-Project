@@ -5,6 +5,7 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const http = require('http'); 
 const { Server } = require('socket.io'); 
+const path = require('path'); // ✅ ĐÃ THÊM: Thư viện xử lý đường dẫn file
 
 const Order = require('./models/Order'); 
 
@@ -15,13 +16,15 @@ const userRoutes = require('./routes/userRoutes');
 const aiRoutes = require('./routes/aiRoutes'); 
 const postRoutes = require('./routes/postRoutes'); 
 const chatRoutes = require('./routes/chatRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const uploadRoutes = require('./routes/uploadRoutes'); // ✅ ĐÃ THÊM ROUTE UPLOAD
 
 dotenv.config();
 const app = express();
 const server = http.createServer(app); 
 
 // ==========================================
-// 🚀 DANH SÁCH KHÁCH VIP ĐƯỢC PHÉP TRUY CẬP (CORS) - ĐÃ CẬP NHẬT TÊN MIỀN
+// 🚀 DANH SÁCH KHÁCH VIP ĐƯỢC PHÉP TRUY CẬP (CORS)
 // ==========================================
 const allowedOrigins = [
   'http://localhost:5173', 
@@ -58,13 +61,19 @@ connectDB();
 // Middlewares
 app.use(express.json());
 
-// --- CẤU HÌNH ĐƯỜNG DẪN ---
+// --- CẤU HÌNH ĐƯỜNG DẪN TĨNH (STATIC FILES) ---
+// ✅ ĐÃ THÊM: Biến thư mục 'uploads' thành thư mục công khai để Frontend hiển thị được ảnh
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// --- CẤU HÌNH ĐƯỜNG DẪN API ---
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ai', aiRoutes); 
 app.use('/api/posts', postRoutes); 
 app.use('/api/chats', chatRoutes); 
+app.use('/api/payment', paymentRoutes); 
+app.use('/api/upload', uploadRoutes); // ✅ CẮM ROUTE UPLOAD VÀO ĐÂY
 
 // --- LOGIC CHAT REALTIME 1-1 ---
 io.on('connection', (socket) => {

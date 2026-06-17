@@ -35,6 +35,7 @@ import MessengerPage from "./pages/ThuMua/MessengerPage";
 import MyOrders from "./pages/Cart/MyOrders"; 
 import ScrollToTop from "./components/ScrollToTop";
 import OrderDetail from "./pages/Order/OrderDetail"; 
+import VnpayReturn from "./pages/Order/VnpayReturn"; // ✅ IMPORT TRANG VNPAY RETURN MỚI THÊM
 
 // --- ADMIN ---
 import Dashboard from "./pages/Admin/Dashboard"; 
@@ -99,13 +100,16 @@ function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/policy" element={<Policy />} />
               <Route path="/support" element={<Support />} /> 
-           
+            
               <Route path="/thu-mua" element={<ThuMuaPage />} />
               <Route path="/thu-mua/post/:id" element={<PostDetailPage />} /> 
               <Route path="/messenger" element={<MessengerPage />} /> 
               <Route path="/my-orders" element={<MyOrders />} /> 
               <Route path="/wishlist" element={<Wishlist />} /> 
               <Route path="/order/:id" element={<OrderDetail />} />
+              
+              {/* ✅ THÊM ROUTE VNPAY RETURN Ở ĐÂY */}
+              <Route path="/order/vnpay-return" element={<VnpayReturn />} /> 
             </Route>
 
             {/* GROUP 2: TRANG ADMIN */}

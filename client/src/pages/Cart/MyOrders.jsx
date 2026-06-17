@@ -1,9 +1,11 @@
+// client/src/pages/Cart/MyOrders.jsx
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { 
   FaBoxOpen, FaClock, FaCheckCircle, FaShippingFast, 
-  FaRegListAlt, FaChevronRight, FaCalendarAlt 
+  FaRegListAlt, FaChevronRight, FaCalendarAlt, FaTimesCircle,
+  FaTruck, FaCheck, FaWallet, FaCreditCard, FaMoneyBillWave
 } from 'react-icons/fa';
 
 const MyOrders = () => {
@@ -24,27 +26,61 @@ const MyOrders = () => {
     fetchOrders();
   }, []);
 
-  // Hàm định dạng màu sắc theo trạng thái
+  // ✅ HÀM CẬP NHẬT: Định dạng Badge Trạng thái đồng bộ với hệ thống mới
   const getStatusBadge = (order) => {
-    if (order.isDelivered) {
-      return (
-        <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase bg-green-100 text-green-700 border border-green-200">
-          <FaCheckCircle /> Đã giao hàng
-        </span>
-      );
+    switch (order.status) {
+      case 'Success':
+        return (
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase bg-green-100 text-green-700 border border-green-200">
+            <FaCheckCircle /> Thành công
+          </span>
+        );
+      case 'Đã giao hàng':
+      case 'Delivered':
+        return (
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase bg-teal-100 text-teal-700 border border-teal-200">
+            <FaCheck /> Đã giao hàng
+          </span>
+        );
+      case 'Đang giao hàng':
+        return (
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase bg-blue-100 text-blue-700 border border-blue-200 animate-pulse">
+            <FaTruck /> Đang giao hàng
+          </span>
+        );
+      case 'Đang xử lý':
+        return (
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase bg-purple-100 text-purple-700 border border-purple-200">
+            <FaBoxOpen /> Đang xử lý
+          </span>
+        );
+      case 'Đã hủy':
+        return (
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase bg-red-100 text-red-700 border border-red-200">
+            <FaTimesCircle /> Đã hủy đơn
+          </span>
+        );
+      default: // Chờ xác nhận hoặc rỗng
+        if (order.isDelivered) {
+          return (
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase bg-teal-100 text-teal-700 border border-teal-200">
+              <FaCheck /> Đã giao hàng
+            </span>
+          );
+        }
+        return (
+          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase bg-yellow-100 text-yellow-700 border border-yellow-200">
+            <FaClock /> Chờ xác nhận
+          </span>
+        );
     }
-    if (order.isPaid) {
-      return (
-        <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase bg-blue-100 text-blue-700 border border-blue-200">
-          <FaShippingFast /> Đang xử lý
-        </span>
-      );
-    }
-    return (
-      <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase bg-yellow-100 text-yellow-700 border border-yellow-200">
-        <FaClock /> Chờ thanh toán
-      </span>
-    );
+  };
+
+  // Hàm render icon phương thức thanh toán cho đẹp mắt
+  const renderPaymentMethodText = (method) => {
+    if (method === 'VNPay') return 'Cổng VNPay';
+    if (method === 'Banking') return 'Chuyển khoản trực tiếp';
+    return 'Tiền mặt (COD)';
   };
 
   if (loading) {
@@ -136,16 +172,32 @@ const MyOrders = () => {
 
                 {/* Order Footer */}
                 <div className="px-6 md:px-8 py-5 bg-gray-50/50 border-t border-gray-50 flex flex-col sm:flex-row justify-between items-center gap-4">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-bold text-gray-500 uppercase text-[10px]">Tổng thanh toán:</span>
-                    <span className="text-2xl font-black text-red-600 drop-shadow-sm">
-                      {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalPrice)}
-                    </span>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full sm:w-auto justify-between md:justify-start flex-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-sm font-bold text-gray-500 uppercase text-[10px]">Tổng cộng:</span>
+                      <span className="text-2xl font-black text-red-600 drop-shadow-sm">
+                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalPrice)}
+                      </span>
+                    </div>
+                    
+                    {/* ✅ THÊM MỚI: Hiển thị tag Trạng thái Thanh toán động */}
+                    <div className="text-[10px] font-bold">
+                      {order.isPaid ? (
+                        <span className="bg-green-100 text-green-700 border border-green-200 px-2.5 py-1 rounded-lg uppercase tracking-wider">
+                          Đã thanh toán ({renderPaymentMethodText(order.paymentMethod)})
+                        </span>
+                      ) : (
+                        <span className="bg-gray-100 text-gray-600 border border-gray-200 px-2.5 py-1 rounded-lg uppercase tracking-wider">
+                          Chưa thanh toán ({renderPaymentMethodText(order.paymentMethod)})
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-3 w-full sm:w-auto">
+
+                  <div className="flex gap-3 w-full sm:w-auto shrink-0">
                     <Link 
                       to={`/order/${order._id}`} 
-                      className="flex-1 sm:flex-none text-center bg-white border-2 border-gray-200 text-gray-700 px-8 py-2.5 rounded-xl font-bold text-sm hover:bg-gray-900 hover:text-white hover:border-gray-900 transition-all shadow-sm"
+                      className="w-full sm:w-auto text-center bg-white border-2 border-gray-200 text-gray-700 px-8 py-2.5 rounded-xl font-bold text-sm hover:bg-gray-900 hover:text-white hover:border-gray-900 transition-all shadow-sm"
                     >
                       Chi tiết đơn hàng
                     </Link>

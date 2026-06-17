@@ -1,4 +1,4 @@
-// frontend/src/pages/Product/Products.jsx
+// client/src/pages/Product/Products.jsx
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
@@ -33,7 +33,6 @@ const Products = () => {
 
         const { data } = await api.get(url + params.toString());
         
-        // ✅ ĐÃ SỬA CHUẨN XÁC: Tự động nhận diện mảng dữ liệu (giống trang Admin)
         const finalData = Array.isArray(data) ? data : (data.products || data.data || []);
         setProducts(finalData);
 
@@ -65,10 +64,18 @@ const Products = () => {
       });
     }
 
+    // ✅ ĐÃ SỬA: Hàm tính giá trị thực tế sau khi trừ chiết khấu để đem đi sắp xếp
+    const getFinalPrice = (product) => {
+        const discountPercent = product.discount || 0;
+        return product.price - (product.price * discountPercent / 100);
+    };
+
     if (sort === 'price_asc') {
-        processed.sort((a, b) => a.price - b.price); 
+        // Sắp xếp theo giá cuối cùng (Từ Thấp đến Cao)
+        processed.sort((a, b) => getFinalPrice(a) - getFinalPrice(b)); 
     } else if (sort === 'price_desc') {
-        processed.sort((a, b) => b.price - a.price); 
+        // Sắp xếp theo giá cuối cùng (Từ Cao xuống Thấp)
+        processed.sort((a, b) => getFinalPrice(b) - getFinalPrice(a)); 
     } else if (sort === 'name_asc') {
         processed.sort((a, b) => a.name.localeCompare(b.name)); 
     } else if (sort === 'name_desc') {

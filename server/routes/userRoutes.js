@@ -5,6 +5,7 @@ const router = express.Router();
 // 1. Import hàm từ Controller
 const { 
   registerUser, 
+  verifyOTP, // ✅ ĐÃ THÊM IMPORT HÀM XÁC THỰC OTP
   loginUser, 
   getUsersCRM, 
   sendMarketingEmail,
@@ -14,7 +15,7 @@ const {
   toggleWishlist,     
   forgotPassword, 
   resetPassword,
-  googleLogin // ✅ ĐÃ IMPORT HÀM GOOGLE LOGIN
+  googleLogin 
 } = require('../controllers/userController');
 
 // 2. Import Middleware xác thực
@@ -23,11 +24,12 @@ const { protect, admin } = require('../middleware/authMiddleware');
 
 // --- CÁC ROUTE CÔNG KHAI ---
 router.post('/', registerUser);       // Đăng ký
+router.post('/verify-otp', verifyOTP); // ✅ ROUTE MỚI: XÁC THỰC MÃ OTP
 router.post('/login', loginUser);     // Đăng nhập
-router.post('/google-login', googleLogin); // ✅ ROUTE ĐĂNG NHẬP GOOGLE
+router.post('/google-login', googleLogin); // Đăng nhập Google
 
 
-// ✅ ROUTE QUÊN MẬT KHẨU (KHÔNG YÊU CẦU ĐĂNG NHẬP)
+// ROUTE QUÊN MẬT KHẨU (KHÔNG YÊU CẦU ĐĂNG NHẬP)
 router.post('/forgotpassword', forgotPassword);
 router.put('/resetpassword/:token', resetPassword);
 

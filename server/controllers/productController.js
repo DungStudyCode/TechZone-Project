@@ -101,64 +101,54 @@ const createSlug = (text) => {
     .replace(/-+$/, ""); // Xóa gạch ngang cuối
 };
 
-// ✅ SỬA HÀM TẠO SẢN PHẨM
+// ✅ SỬA HÀM TẠO SẢN PHẨM (Nhận thêm images và video)
 const createProduct = async (req, res) => {
   try {
-    const { name, price, description, image, brand, category, countInStock, specs, discount } = req.body;
+    const { name, price, description, image, images, video, brand, category, countInStock, specs, discount } = req.body;
 
-    // 1. Tự động tạo Slug từ tên
     const slug = createSlug(name);
-
-    // 2. Kiểm tra trùng lặp (Optional)
     const productExists = await Product.findOne({ name });
-    if (productExists) {
-      return res.status(400).json({ message: 'Sản phẩm này đã tồn tại' });
-    }
+    
+    if (productExists) return res.status(400).json({ message: 'Sản phẩm này đã tồn tại' });
 
-    // 3. Tạo sản phẩm mới với đầy đủ trường bắt buộc
     const product = new Product({
-      name,
-      slug, // <--- Quan trọng: Server tự tạo
-      price,
-      description,
-      image,
-      brand,
-      category,
-      countInStock,
-      specs,
-      discount,
-      user: req.user._id, // <--- Quan trọng: Lấy ID của Admin đang đăng nhập
+      name, slug, price, description, image, 
+      images: images || [], // Nếu có ảnh phụ thì nhận, không thì mảng rỗng
+      video: video || "",   // Nhận link video
+      brand, category, countInStock, specs, discount,
+      user: req.user._id,
     });
 
     const createdProduct = await product.save();
     res.status(201).json(createdProduct);
-
   } catch (error) {
-    console.error("Lỗi tạo SP:", error);
     res.status(500).json({ message: 'Lỗi Server: ' + error.message });
   }
 };
 
-// ✅ SỬA HÀM CẬP NHẬT SẢN PHẨM
+// ✅ SỬA HÀM CẬP NHẬT SẢN PHẨM (Nhận thêm images và video)
 const updateProduct = async (req, res) => {
   try {
-    const { name, price, description, image, brand, category, countInStock, specs, discount } = req.body;
-
+    const { name, price, description, image, images, video, brand, category, countInStock, specs, discount } = req.body;
     const product = await Product.findById(req.params.id);
 
     if (product) {
       product.name = name || product.name;
-      // Nếu tên đổi thì cập nhật luôn slug
       if (name) product.slug = createSlug(name);
       
       product.price = price || product.price;
       product.description = description || product.description;
       product.image = image || product.image;
+      
+      // Cập nhật ảnh phụ và video
+      if (images !== undefined) product.images = images;
+      if (video !== undefined) product.video = video;
+
       product.brand = brand || product.brand;
       product.category = category || product.category;
       product.countInStock = countInStock || product.countInStock;
       product.specs = specs || product.specs;
-      product.discount = discount || product.discount; // Cập nhật giảm giá
+      product.discount = discount || product.discount;
 
       const updatedProduct = await product.save();
       res.json(updatedProduct);
@@ -166,7 +156,6 @@ const updateProduct = async (req, res) => {
       res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
     }
   } catch (error) {
-    console.error("Lỗi cập nhật SP:", error);
     res.status(500).json({ message: 'Lỗi Server: ' + error.message });
   }
 };
@@ -214,6 +203,35 @@ const createProductReview = async (req, res) => {
   }
 };
 
+// ✅ TÍNH NĂNG MỚI: Lấy sản phẩm gợi ý (Related Products)
+// GET /api/products/:id/related
+const getRelatedProducts = async (req, res) => {
+  try {
+    // 1. Tìm thông tin sản phẩm mà khách đang xem (dựa vào ID truyền lên)
+    const currentProduct = await Product.findById(req.params.id);
+    
+    if (!currentProduct) {
+      return res.status(404).json({ message: 'Không tìm thấy sản phẩm gốc' });
+    }
+
+    // 2. Thuật toán tìm kiếm thông minh: 
+    //    - Cùng danh mục (category).
+    //    - Loại trừ chính sản phẩm đang xem ($ne).
+    const relatedProducts = await Product.find({
+      _id: { $ne: currentProduct._id },
+      category: currentProduct.category,
+    })
+    .limit(4)           // Giới hạn lấy 4 sản phẩm cho layout thẻ
+    .sort({ rating: -1 }) // Sắp xếp theo đánh giá từ cao xuống thấp
+    .select('-reviews');  // Loại bỏ mảng đánh giá để response nhẹ hơn
+
+    res.json(relatedProducts);
+  } catch (error) {
+    console.error("Lỗi lấy sản phẩm gợi ý:", error);
+    res.status(500).json({ message: 'Lỗi server khi lấy gợi ý: ' + error.message });
+  }
+};
+
 // ✅ Đừng quên export các hàm
 module.exports = { 
   getProducts, 
@@ -222,5 +240,6 @@ module.exports = {
   deleteProduct, 
   createProduct, 
   updateProduct,
-  createProductReview
+  createProductReview,
+  getRelatedProducts, // <--- Đã thêm
 };  

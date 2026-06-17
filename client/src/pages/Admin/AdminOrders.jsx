@@ -1,13 +1,15 @@
 // client/src/pages/Admin/AdminOrders.jsx
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
+import { toast } from 'react-toastify'; // ✅ IMPORT TOASTIFY
 import {
   FaCheck,
   FaTruck,
   FaBoxOpen,
   FaClipboardList,
   FaTimesCircle,
-  FaUndoAlt
+  FaUndoAlt,
+  FaCheckCircle
 } from "react-icons/fa"; 
 
 // Hàm format tiền
@@ -23,7 +25,7 @@ const AdminOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Mảng trạng thái chuẩn E-commerce
+  // Mảng trạng thái chuẩn (Admin KHÔNG được chọn 'Success', trạng thái này chỉ khách được chọn)
   const statusOptions = [
     'Chờ xác nhận', 
     'Đang xử lý', 
@@ -44,27 +46,30 @@ const AdminOrders = () => {
       setOrders(data);
     } catch (error) {
       console.error("Lỗi tải đơn hàng:", error);
+      toast.error("Lỗi tải danh sách đơn hàng!");
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ HÀM DUY NHẤT: XỬ LÝ KHI CHỌN TRẠNG THÁI MỚI TỪ DROPDOWN
+  // ✅ XỬ LÝ CẬP NHẬT TRẠNG THÁI VỚI TOAST
   const handleStatusChange = async (orderId, newStatus) => {
     if (window.confirm(`Bạn muốn đổi trạng thái đơn hàng thành: "${newStatus}"?`)) {
       try {
         await api.put(`/orders/${orderId}/status`, { status: newStatus });
-        alert("Cập nhật trạng thái thành công!");
-        fetchOrders(); // Load lại danh sách
+        toast.success(`Cập nhật trạng thái thành "${newStatus}" thành công!`); // Đổi alert thành toast
+        fetchOrders(); 
       } catch (error) {
-        alert(error.response?.data?.message || "Lỗi cập nhật trạng thái");
+        toast.error(error.response?.data?.message || "Lỗi cập nhật trạng thái");
       }
     }
   };
 
-  // Hàm render giao diện Trạng thái (Pill) dựa trên chữ
+  // ✅ ĐÃ THÊM TRẠNG THÁI 'Success' ĐỂ HIỂN THỊ
   const renderStatusBadge = (status) => {
     switch (status) {
+      case 'Success': // Khách đã bấm nhận hàng
+        return <span className="bg-green-500 text-white shadow-md px-3 py-1 rounded-full text-[11px] font-bold flex items-center w-fit gap-1"><FaCheckCircle /> Thành công</span>;
       case 'Đã giao hàng':
         return <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-[11px] font-bold flex items-center w-fit gap-1"><FaCheck /> {status}</span>;
       case 'Đang giao hàng':
@@ -127,7 +132,7 @@ const AdminOrders = () => {
 
                   {/* Cột 2: Khách hàng */}
                   <td className="px-5 py-4 text-sm">
-                    <p className="font-bold text-gray-800">{order.user?.name || "Khách lẻ"}</p>
+                    <p className="font-bold text-gray-800">{order.shippingAddress?.recipientName || order.user?.name || "Khách lẻ"}</p>
                     {order.shippingAddress && (
                       <>
                         <p className="text-gray-500 text-xs">{order.shippingAddress.phone}</p>
@@ -158,11 +163,11 @@ const AdminOrders = () => {
                     <div className="font-bold text-red-600 mb-1">{formatPrice(order.totalPrice)}</div>
                     {order.isPaid ? (
                       <span className="text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded border border-green-200">
-                        Đã thanh toán ({order.paymentMethod})
+                        Đã thanh toán ({order.paymentMethod === 'VNPay' ? 'VNPay' : order.paymentMethod})
                       </span>
                     ) : (
                       <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200">
-                        Chưa thanh toán ({order.paymentMethod})
+                        Chưa thanh toán ({order.paymentMethod === 'VNPay' ? 'VNPay' : order.paymentMethod})
                       </span>
                     )}
                   </td>
@@ -174,14 +179,18 @@ const AdminOrders = () => {
 
                   {/* Cột 6: Dropdown Cập nhật Trạng thái */}
                   <td className="px-5 py-4 text-center">
+                    {/* KHÓA NÚT NẾU LÀ ĐÃ HỦY HOẶC ĐÃ THÀNH CÔNG */}
                     <select
-                      value={order.status}
+                      value={order.status === 'Success' ? 'Đã giao hàng' : order.status}
                       onChange={(e) => handleStatusChange(order._id, e.target.value)}
-                      disabled={order.status === 'Đã giao hàng' || order.status === 'Đã hủy' || order.status === 'Hoàn trả/Hoàn tiền'}
+                      disabled={order.status === 'Success' || order.status === 'Đã hủy' || order.status === 'Hoàn trả/Hoàn tiền'}
                       className={`text-xs border rounded-lg px-2 py-1 outline-none font-medium cursor-pointer shadow-sm
-                        ${order.status === 'Đã giao hàng' ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white border-purple-300 text-purple-700 hover:border-purple-500'}
+                        ${(order.status === 'Success' || order.status === 'Đã hủy') ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200' : 'bg-white border-purple-300 text-purple-700 hover:border-purple-500'}
                       `}
                     >
+                      {/* Nếu đơn hàng đang ở mốc Success thì hiển thị cứng cái option đó để Admin biết */}
+                      {order.status === 'Success' && <option value="Success">Đã hoàn tất vòng đời</option>}
+                      
                       {statusOptions.map(option => (
                         <option key={option} value={option}>
                           {option}

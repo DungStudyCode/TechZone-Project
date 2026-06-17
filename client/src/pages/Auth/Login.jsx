@@ -1,133 +1,150 @@
 // client/src/pages/Auth/Login.jsx
-import React, { useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import api from "../../services/api";
-import { useAuth } from "../../contexts/AuthContext";
-import { toast } from "react-toastify";
-import {
-  FaEnvelope,
-  FaLock,
-  FaEye,
-  FaEyeSlash,
-  FaGoogle,
-} from "react-icons/fa";
-// ✅ IMPORT HOOK CỦA GOOGLE
-import { useGoogleLogin } from "@react-oauth/google";
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import api from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaGoogle, FaUserCircle, FaTimes } from 'react-icons/fa';
+import { toast } from 'react-toastify';
+import { useGoogleLogin } from '@react-oauth/google';
 
 const Login = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // ✅ STATE: Lưu danh sách tài khoản đã từng đăng nhập trên máy này
+  const [recentAccounts, setRecentAccounts] = useState([]);
 
+  const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const redirect = location.search ? location.search.split('=')[1] : '/';
 
-  // Lấy các tham số trên thanh địa chỉ xuống
-  const sp = new URLSearchParams(location.search);
-  const redirect = sp.get("redirect") ? "/" + sp.get("redirect") : "/";
-  const isExpired = sp.get("expired"); // Lấy cái đuôi ?expired=true
-
+  // Khi mở trang, đọc danh sách tài khoản cũ từ Local Storage
   useEffect(() => {
-    // Nếu bị văng ra do hết hạn token, bắn một cái Toast nhắc nhở
-    if (isExpired) {
-      toast.warn(
-        "Phiên đăng nhập của bạn đã hết hạn. Vui lòng đăng nhập lại để bảo mật!",
-        {
-          toastId: "expired-toast", // Đảm bảo không bị hiện thông báo trùng lặp
-        },
-      );
+    const saved = localStorage.getItem('tz_recent_accounts');
+    if (saved) {
+      setRecentAccounts(JSON.parse(saved));
     }
+  }, []);
 
-    const userInfo = localStorage.getItem("userInfo");
-    if (userInfo) {
-      navigate(redirect);
-    }
-  }, [navigate, redirect, isExpired]);
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
-  // HÀM 1: ĐĂNG NHẬP BẰNG EMAIL/MẬT KHẨU THƯỜNG
-  const submitHandler = async (e) => {
+  // ✅ HÀM: Chọn tài khoản từ danh sách gợi ý
+  const selectRecentAccount = (email) => {
+    setFormData({ email: email, password: '' }); // Chỉ điền email, xóa trống mật khẩu
+    document.getElementById('passwordInput').focus(); // Tự động trỏ chuột vào ô mật khẩu
+  };
+
+  // ✅ HÀM: Xóa một tài khoản khỏi danh sách gợi ý
+  const removeRecentAccount = (e, emailToRemove) => {
+    e.stopPropagation(); // Ngăn sự kiện click lan ra ngoài
+    const updatedAccounts = recentAccounts.filter(acc => acc.email !== emailToRemove);
+    setRecentAccounts(updatedAccounts);
+    localStorage.setItem('tz_recent_accounts', JSON.stringify(updatedAccounts));
+    if (formData.email === emailToRemove) setFormData({ email: '', password: '' });
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+
     try {
-      const { data } = await api.post("/users/login", { email, password });
+      const { data } = await api.post('/users/login', {
+        email: formData.email,
+        password: formData.password
+      });
+      
+      // ✅ LOGIC: Cập nhật danh sách "Tài khoản gần đây" (Chỉ lưu Tên, Email, Avatar)
+      const newAccount = { email: data.email, name: data.name, avatar: data.avatar };
+      const filtered = recentAccounts.filter(acc => acc.email !== data.email); // Bỏ cái cũ nếu trùng
+      const updatedList = [newAccount, ...filtered].slice(0, 3); // Lưu tối đa 3 tài khoản gần nhất
+      
+      localStorage.setItem('tz_recent_accounts', JSON.stringify(updatedList));
+
       login(data);
-      toast.success("Đăng nhập thành công! Chào mừng trở lại.");
-      navigate(redirect);
+      toast.success('Đăng nhập thành công!');
+      navigate(redirect); 
     } catch (err) {
-      toast.error(err.response?.data?.message || "Sai email hoặc mật khẩu");
+      toast.error(err.response?.data?.message || 'Sai email hoặc mật khẩu!');
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ HÀM 2: ĐĂNG NHẬP BẰNG GOOGLE
-  const loginWithGoogle = useGoogleLogin({
+  const handleGoogleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setLoading(true);
       try {
-        // Lấy token Google cấp, gửi về Backend của mình để kiểm tra
-        const { data } = await api.post("/users/google-login", {
-          access_token: tokenResponse.access_token,
-        });
+        const { data } = await api.post('/users/google-login', { access_token: tokenResponse.access_token });
+        
+        // Cập nhật gợi ý tài khoản cho Google Login
+        const newAccount = { email: data.email, name: data.name, avatar: data.avatar };
+        const filtered = recentAccounts.filter(acc => acc.email !== data.email);
+        const updatedList = [newAccount, ...filtered].slice(0, 3);
+        localStorage.setItem('tz_recent_accounts', JSON.stringify(updatedList));
 
-        login(data); // Lưu user vào Context & LocalStorage
-        toast.success("Đăng nhập bằng Google thành công!");
+        login(data);
+        toast.success('Đăng nhập Google thành công!');
         navigate(redirect);
       } catch (err) {
-        console.error("Lỗi Google Login:", err);
-        toast.error("Lỗi máy chủ khi đăng nhập Google!");
+        toast.error('Xác thực Google thất bại!');
+        console.error(err);
       } finally {
         setLoading(false);
       }
-    },
-    onError: () => {
-      toast.error("Đăng nhập Google thất bại!");
-    },
+    }
   });
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
-      <div className="max-w-4xl w-full bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col md:flex-row-reverse border border-gray-100">
-        {/* CỘT PHẢI: Branding */}
-        <div className="md:w-1/2 bg-purple-900 text-white p-12 flex flex-col justify-center relative overflow-hidden">
-          <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-purple-600 rounded-full mix-blend-multiply filter blur-2xl opacity-50 animate-pulse"></div>
-          <div
-            className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-purple-800 rounded-full mix-blend-multiply filter blur-2xl opacity-50 animate-pulse"
-            style={{ animationDelay: "2s" }}
-          ></div>
-
-          <div className="relative z-10">
-            <h2 className="text-4xl font-black mb-6 tracking-tight">
-              TechZone
-            </h2>
-            <p className="text-purple-200 text-lg leading-relaxed mb-8 font-medium">
-              Chào mừng bạn quay trở lại! Đăng nhập để tiếp tục mua sắm và quản
-              lý các đơn hàng của bạn.
-            </p>
-          </div>
-        </div>
-
-        {/* CỘT TRÁI: Form Đăng nhập */}
-        <div className="md:w-1/2 p-10 lg:p-14">
+      <div className="max-w-4xl w-full bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col md:flex-row border border-gray-100">
+        
+        <div className="md:w-1/2 p-10 lg:p-14 relative order-2 md:order-1">
           <h3 className="text-2xl font-bold text-gray-800 mb-2">Đăng nhập</h3>
-          <p className="text-gray-500 text-sm mb-8">
-            Vui lòng nhập thông tin tài khoản của bạn
-          </p>
+          <p className="text-gray-500 text-sm mb-6">Vui lòng nhập thông tin tài khoản của bạn</p>
 
-          <form onSubmit={submitHandler} className="space-y-5">
+          {/* ✅ KHU VỰC HIỂN THỊ TÀI KHOẢN GẦN ĐÂY (STYLE FACEBOOK) */}
+          {recentAccounts.length > 0 && (
+            <div className="mb-6">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Tài khoản trên máy này</p>
+              <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
+                {recentAccounts.map((acc, index) => (
+                  <div 
+                    key={index} 
+                    onClick={() => selectRecentAccount(acc.email)}
+                    className={`relative flex items-center gap-3 p-2 pr-4 rounded-full border cursor-pointer transition-all min-w-max hover:bg-purple-50 hover:border-purple-200 ${formData.email === acc.email ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-200' : 'border-gray-200 bg-white'}`}
+                  >
+                    {acc.avatar ? (
+                      <img src={acc.avatar} alt="avatar" className="w-8 h-8 rounded-full object-cover border border-gray-200" />
+                    ) : (
+                      <FaUserCircle className="w-8 h-8 text-gray-400" />
+                    )}
+                    <span className="text-sm font-bold text-gray-700 truncate max-w-[100px]">{acc.name}</span>
+                    <button 
+                      onClick={(e) => removeRecentAccount(e, acc.email)}
+                      className="absolute -top-1 -right-1 bg-gray-200 text-gray-600 rounded-full w-4 h-4 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors text-[10px]"
+                    >
+                      <FaTimes />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <FaEnvelope className="text-gray-400" />
               </div>
               <input
-                type="email"
-                required
-                className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all text-sm font-medium"
+                type="email" name="email" required autoComplete="username"
+                className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none transition-all text-sm font-medium"
                 placeholder="Địa chỉ Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={formData.email} onChange={handleChange}
               />
             </div>
 
@@ -136,84 +153,54 @@ const Login = () => {
                 <FaLock className="text-gray-400" />
               </div>
               <input
-                type={showPassword ? "text" : "password"}
-                required
-                className="w-full pl-11 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all text-sm font-medium"
+                id="passwordInput"
+                type={showPassword ? "text" : "password"} name="password" required autoComplete="current-password"
+                className="w-full pl-11 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none transition-all text-sm font-medium"
                 placeholder="Mật khẩu"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={formData.password} onChange={handleChange}
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
+              <button 
+                type="button" onClick={() => setShowPassword(!showPassword)}
                 className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-purple-600 transition-colors"
               >
                 {showPassword ? <FaEyeSlash /> : <FaEye />}
               </button>
             </div>
 
-            <div className="flex items-center justify-between mt-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
-                />
-                <span className="text-sm text-gray-600 font-medium">
-                  Ghi nhớ tôi
-                </span>
-              </label>
-              <Link
-                to="/forgot-password"
-                className="text-sm font-bold text-purple-600 hover:text-purple-800 transition-colors"
-              >
-                Quên mật khẩu?
-              </Link>
+            <div className="flex items-center justify-end mt-2">
+              <Link to="/forgot-password" className="text-sm font-bold text-purple-600 hover:text-purple-800">Quên mật khẩu?</Link>
             </div>
 
             <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg hover:shadow-purple-500/30 flex justify-center items-center gap-2 mt-6"
+              type="submit" disabled={loading}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 rounded-xl shadow-lg flex justify-center items-center"
             >
-              {loading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                "ĐĂNG NHẬP"
-              )}
+              {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : "ĐĂNG NHẬP"}
             </button>
           </form>
 
           <div className="mt-8 relative flex items-center justify-center">
             <div className="border-t border-gray-200 w-full absolute"></div>
-            <span className="bg-white px-4 text-xs text-gray-400 relative z-10 font-bold tracking-wider">
-              HOẶC
-            </span>
+            <span className="bg-white px-4 text-xs text-gray-400 relative z-10 font-bold tracking-wider">HOẶC</span>
           </div>
 
-          {/* ✅ NÚT ĐĂNG NHẬP GOOGLE ĐÃ GẮN SỰ KIỆN ONCLICK */}
-          <button
-            type="button"
-            onClick={() => loginWithGoogle()}
-            disabled={loading}
-            className="mt-6 w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-100 hover:bg-gray-50 hover:border-purple-200 text-gray-700 font-bold py-3.5 rounded-xl transition-all shadow-sm disabled:opacity-50"
+          <button 
+            type="button" onClick={() => handleGoogleLogin()}
+            className="mt-6 w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-100 hover:bg-gray-50 text-gray-700 font-bold py-3.5 rounded-xl"
           >
             <FaGoogle className="text-red-500 text-lg" /> Đăng nhập bằng Google
           </button>
-
-          <p className="mt-8 text-center text-sm text-gray-600 font-medium">
-            Chưa có tài khoản?{" "}
-            <Link
-              to={
-                redirect !== "/"
-                  ? `/register?redirect=${redirect.substring(1)}`
-                  : "/register"
-              }
-              className="text-purple-600 hover:text-purple-800 font-bold transition-colors underline decoration-2 underline-offset-4"
-            >
-              Đăng ký ngay
-            </Link>
-          </p>
         </div>
+
+        {/* CỘT PHẢI */}
+        <div className="md:w-1/2 bg-purple-700 text-white p-12 flex flex-col justify-center relative overflow-hidden order-1 md:order-2">
+          {/* ... (Giữ nguyên giao diện cột phải của bạn) ... */}
+          <div className="relative z-10 pl-4 border-l-4 border-purple-400">
+            <h2 className="text-4xl font-black mb-6">TechZone</h2>
+            <p className="text-purple-100 text-lg leading-relaxed font-medium">Chào mừng bạn quay trở lại! Đăng nhập để tiếp tục mua sắm.</p>
+          </div>
+        </div>
+
       </div>
     </div>
   );

@@ -6,11 +6,9 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  isAdmin: { type: Boolean, default: false }, // Phân biệt Admin và Khách
-  loyaltyScore: { type: Number, default: 0 }, // Điểm thân thiết (tăng khi mua hàng)
-  customerSegment: { type: String, default: 'New' }, // Ví dụ: New, Potential, VIP, AtRisk
-  
-  // --- CÁC TRƯỜNG MỚI ĐƯỢC BỔ SUNG ---
+  isAdmin: { type: Boolean, default: false }, 
+  loyaltyScore: { type: Number, default: 0 }, 
+  customerSegment: { type: String, default: 'New' }, 
   
   // 1. Ảnh đại diện
   avatar: { type: String, default: "" },
@@ -33,19 +31,33 @@ const userSchema = new mongoose.Schema({
     }
   ],
 
-  // ✅ 4. SẢN PHẨM YÊU THÍCH (WISHILST) - Bạn bị thiếu cái này!
+  // 4. SẢN PHẨM YÊU THÍCH (WISHLIST)
   wishlist: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Product', // Liên kết trực tiếp sang bảng Sản phẩm (Product)
+      ref: 'Product', 
     }
-  ]
+  ],
+
+  // ✅ 5. BẢO MẬT XÁC THỰC EMAIL (CÁC TRƯỜNG MỚI BỔ SUNG)
+  isVerified: { 
+    type: Boolean, 
+    required: true, 
+    default: false // Mặc định đăng ký xong chưa được kích hoạt
+  },
+  otp: { 
+    type: String 
+  },
+  otpExpires: { 
+    type: Date 
+  },
+
 }, { timestamps: true });
 
-// Hàm này chạy trước khi lưu User vào DB để mã hóa mật khẩu
+// ✅ ĐÃ FIX LỖI: Hàm này chạy trước khi lưu User vào DB để mã hóa mật khẩu
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) {
-    next();
+    return next(); // 🚨 CỰC KỲ QUAN TRỌNG: Phải có chữ 'return' để dừng hàm lại tại đây
   }
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);

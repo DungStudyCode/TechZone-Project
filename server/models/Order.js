@@ -47,7 +47,7 @@ const orderSchema = mongoose.Schema(
     isDelivered: { type: Boolean, required: true, default: false },
     deliveredAt: { type: Date },
     
-    // ✅ ĐÃ NÂNG CẤP LUỒNG TRẠNG THÁI CHUẨN E-COMMERCE
+    // ✅ ĐÃ THÊM 'Success' VÀO MẢNG ENUM
     status: { 
       type: String, 
       enum: [
@@ -55,6 +55,7 @@ const orderSchema = mongoose.Schema(
         'Đang xử lý', 
         'Đang giao hàng', 
         'Đã giao hàng', 
+        'Success', 
         'Đã hủy', 
         'Hoàn trả/Hoàn tiền'
       ],

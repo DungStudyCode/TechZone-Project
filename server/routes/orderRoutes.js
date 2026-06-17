@@ -2,13 +2,15 @@
 const express = require('express');
 const router = express.Router();
 
-// ✅ Chỉ import những hàm đang thực sự được dùng từ Controller
+// ✅ Đã thêm markOrderAsSuccess vào danh sách import
 const { 
   createOrder, 
   getAllOrders, 
   getMyOrders,
   getOrderById, 
-  updateOrderStatus, // Hàm All-in-one quản lý trạng thái
+  updateOrderStatus, 
+  cancelOrder, 
+  markOrderAsSuccess, // <-- Thêm hàm này
   getDashboardStats
 } = require('../controllers/orderController');
 
@@ -30,7 +32,13 @@ router.get('/:id', protect, getOrderById);
 // ==================================================
 // ✅ ROUTE CẬP NHẬT TRẠNG THÁI (MỚI)
 // ==================================================
-// Gom 3 route cũ (deliver, confirm, success) thành 1 route duy nhất
+// Route cho Admin quản lý trạng thái
 router.put('/:id/status', protect, admin, updateOrderStatus);
+
+// ROUTE HỦY ĐƠN (Dành cho Khách hàng)
+router.put('/:id/cancel', protect, cancelOrder);
+
+// ✅ ROUTE XÁC NHẬN ĐÃ NHẬN HÀNG (Dành cho Khách hàng)
+router.put('/:id/success', protect, markOrderAsSuccess); // <-- Khai báo Route ở đây
 
 module.exports = router;

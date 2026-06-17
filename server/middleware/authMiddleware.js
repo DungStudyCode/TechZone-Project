@@ -9,12 +9,19 @@ const protect = async (req, res, next) => {
     try {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret123');
+      
       req.user = await User.findById(decoded.id).select('-password');
+      
+      // ✅ CHỐT CHẶN BẢO MẬT: Kiểm tra xem User còn tồn tại trong DB không
+      if (!req.user) {
+        return res.status(401).json({ message: 'Tài khoản không còn tồn tại trên hệ thống!' });
+      }
+
       next();
     } catch (error) {
-      console.error("Lỗi xác thực Token:", error.message);
+      // ✅ IN LỖI RA TERMINAL ĐỂ BẮT ĐÚNG BỆNH
+      console.error("🛑 Lỗi xác thực Token tại Backend:", error.message);
       
-      // ✅ Tối ưu: Bắt chính xác lỗi hết hạn Token
       if (error.name === 'TokenExpiredError') {
          return res.status(401).json({ message: 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!' });
       }

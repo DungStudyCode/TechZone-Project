@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useCart } from "../../contexts/CartContext";
 import { useAuth } from "../../contexts/AuthContext";
 import api from "../../services/api";
+import axios from "axios"; // ✅ Bổ sung Axios để gọi API Tỉnh/Thành
 import {
   FaMapMarkerAlt,
   FaPhoneAlt,
@@ -11,7 +12,7 @@ import {
   FaMoneyBillWave,
   FaCreditCard,
   FaCheckCircle,
-  FaWallet, // ✅ Thêm icon ví cho VNPay
+  FaWallet,
 } from "react-icons/fa";
 
 const Checkout = () => {
@@ -26,23 +27,79 @@ const Checkout = () => {
   const [phone, setPhone] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("COD"); // Mặc định là COD
 
+  // ✅ STATES API TỈNH/THÀNH PHỐ
+  const [provinces, setProvinces] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [wards, setWards] = useState([]);
+
+  const [selectedProvince, setSelectedProvince] = useState(null);
+  const [selectedDistrict, setSelectedDistrict] = useState(null);
+  const [selectedWard, setSelectedWard] = useState(null);
+
+  // ✅ ĐÃ SỬA: Nạp dữ liệu sổ địa chỉ mặc định (Có bọc setTimeout để tránh lỗi ESLint)
   useEffect(() => {
-    if (user?.addresses?.length > 0) {
-      const defaultAddr = user.addresses.find((a) => a.isDefault) || user.addresses[0];
-      setRecipientName(defaultAddr.recipientName);
-      setPhone(defaultAddr.phoneNumber);
-      setCity(defaultAddr.city);
-      setAddress(defaultAddr.street);
-    } else if (user) {
-      setRecipientName(user.name);
+    if (user) {
+      const timer = setTimeout(() => {
+        if (user.addresses?.length > 0) {
+          const defaultAddr = user.addresses.find((a) => a.isDefault) || user.addresses[0];
+          setRecipientName(defaultAddr.recipientName);
+          setPhone(defaultAddr.phoneNumber);
+          setCity(defaultAddr.city);
+          setAddress(defaultAddr.street);
+        } else {
+          setRecipientName(user.name);
+        }
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [user]);
 
+  // ✅ EFFECT: Gọi API 63 Tỉnh Thành 1 lần duy nhất khi mở trang
+  useEffect(() => {
+    axios.get("https://provinces.open-api.vn/api/p/")
+      .then(res => setProvinces(res.data))
+      .catch(err => console.error("Lỗi tải tỉnh:", err));
+  }, []);
+
+  // ✅ EFFECT: Tải Quận/Huyện khi chọn Tỉnh
+  useEffect(() => {
+    if (selectedProvince) {
+      axios.get(`https://provinces.open-api.vn/api/p/${selectedProvince.code}?depth=2`)
+        .then(res => {
+          setDistricts(res.data.districts);
+          setTimeout(() => {
+            setSelectedDistrict(null);
+            setSelectedWard(null);
+            setWards([]);
+          }, 0);
+        })
+        .catch(err => console.error(err));
+    }
+  }, [selectedProvince]);
+
+  // ✅ EFFECT: Tải Phường/Xã khi chọn Quận
+  useEffect(() => {
+    if (selectedDistrict) {
+      axios.get(`https://provinces.open-api.vn/api/d/${selectedDistrict.code}?depth=2`)
+        .then(res => {
+          setWards(res.data.wards);
+          setTimeout(() => setSelectedWard(null), 0);
+        })
+        .catch(err => console.error(err));
+    }
+  }, [selectedDistrict]);
+
+  // Chọn từ Sổ Địa Chỉ
   const handleSelectAddress = (addr) => {
     setRecipientName(addr.recipientName);
     setPhone(addr.phoneNumber);
     setCity(addr.city);
     setAddress(addr.street);
+    
+    // Reset lại 3 ô dropdown
+    setSelectedProvince(null);
+    setSelectedDistrict(null);
+    setSelectedWard(null);
   };
 
   const itemsPrice = cartItems.reduce((acc, item) => {
@@ -66,6 +123,11 @@ const Checkout = () => {
       return;
     }
 
+    if (!city) {
+      alert("Vui lòng chọn đầy đủ Khu vực giao hàng!");
+      return;
+    }
+
     setLoading(true);
     try {
       const orderItems = cartItems.map((item) => ({
@@ -80,7 +142,7 @@ const Checkout = () => {
         orderItems: orderItems,
         shippingAddress: {
           address,
-          city,
+          city, // city đã được gộp chuỗi chuẩn
           phone,
           country: "Vietnam",
         },
@@ -95,16 +157,14 @@ const Checkout = () => {
       
       // BƯỚC 2: KIỂM TRA PHƯƠNG THỨC THANH TOÁN
       if (paymentMethod === "VNPay") {
-        // Gọi API tạo link VNPay
         const vnpayRes = await api.post("/payment/vnpay_url", {
           orderId: data._id, 
           amount: totalPrice
         });
         
-        clearCart(); // Xóa giỏ hàng
-        // Đá khách hàng sang trang VNPay
+        clearCart(); 
         window.location.href = vnpayRes.data.paymentUrl;
-        return; // Dừng hàm lại tại đây
+        return; 
       }
 
       // NẾU LÀ COD HOẶC BANKING THÌ CHẠY NHƯ CŨ
@@ -130,7 +190,7 @@ const Checkout = () => {
         <div className="lg:w-2/3 space-y-6">
           <form id="checkout-form" onSubmit={placeOrderHandler}>
             
-            {/* Box 1: Địa chỉ (Giữ nguyên như cũ) */}
+            {/* Box 1: Địa chỉ */}
             <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-gray-100">
               <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
                 <span className="bg-purple-100 text-purple-600 w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-inner">
@@ -180,7 +240,7 @@ const Checkout = () => {
                   </div>
                 </div>
 
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">
                     Số điện thoại <span className="text-red-500">*</span>
                   </label>
@@ -190,11 +250,89 @@ const Checkout = () => {
                   </div>
                 </div>
 
-                <div>
+                {/* ✅ COMBOBOX CHỌN KHU VỰC */}
+                <div className="md:col-span-2">
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">
-                    Tỉnh / Thành phố <span className="text-red-500">*</span>
+                    Khu vực giao hàng (Tỉnh/Quận/Phường) <span className="text-red-500">*</span>
                   </label>
-                  <input type="text" required value={city} onChange={(e) => setCity(e.target.value)} className="w-full px-4 border-2 border-gray-100 rounded-2xl py-3.5 focus:border-purple-300 focus:bg-purple-50/30 outline-none transition-all font-bold text-gray-700" placeholder="Hà Nội, TP.HCM..." />
+                  
+                  {city && !selectedProvince ? (
+                    // Trạng thái 1: Nhận diện từ Sổ địa chỉ (ẩn combobox cho gọn)
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="relative flex-1">
+                        <FaMapMarkerAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-500" />
+                        <input 
+                          type="text" 
+                          readOnly 
+                          value={city} 
+                          className="pl-12 w-full border-2 border-purple-200 bg-purple-50/30 text-purple-700 rounded-2xl py-3.5 outline-none font-bold" 
+                        />
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => setCity("")} // Reset lại để hiện combobox
+                        className="shrink-0 px-6 py-3.5 bg-white border-2 border-gray-200 text-gray-600 font-bold rounded-2xl hover:border-purple-300 hover:text-purple-600 transition-all text-sm"
+                      >
+                        Nhập mới
+                      </button>
+                    </div>
+                  ) : (
+                    // Trạng thái 2: Form nhập tay mới
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {/* Chọn Tỉnh */}
+                      <select
+                        className="w-full px-4 py-3.5 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-purple-300 focus:bg-white outline-none transition-all font-bold text-gray-700 text-sm"
+                        value={selectedProvince?.code || ""}
+                        onChange={(e) => {
+                          const selected = provinces.find((p) => p.code === parseInt(e.target.value));
+                          setSelectedProvince(selected);
+                          setCity(""); 
+                        }}
+                        required
+                      >
+                        <option value="" disabled>-- Chọn Tỉnh/TP --</option>
+                        {provinces.map((prov) => (
+                          <option key={prov.code} value={prov.code}>{prov.name}</option>
+                        ))}
+                      </select>
+
+                      {/* Chọn Quận */}
+                      <select
+                        className="w-full px-4 py-3.5 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-purple-300 focus:bg-white outline-none transition-all font-bold text-gray-700 text-sm disabled:opacity-50"
+                        value={selectedDistrict?.code || ""}
+                        onChange={(e) => {
+                          const selected = districts.find((d) => d.code === parseInt(e.target.value));
+                          setSelectedDistrict(selected);
+                        }}
+                        disabled={!selectedProvince}
+                        required
+                      >
+                        <option value="" disabled>-- Chọn Quận/Huyện --</option>
+                        {districts.map((dist) => (
+                          <option key={dist.code} value={dist.code}>{dist.name}</option>
+                        ))}
+                      </select>
+
+                      {/* Chọn Phường */}
+                      <select
+                        className="w-full px-4 py-3.5 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-purple-300 focus:bg-white outline-none transition-all font-bold text-gray-700 text-sm disabled:opacity-50"
+                        value={selectedWard?.code || ""}
+                        onChange={(e) => {
+                          const selected = wards.find((w) => w.code === parseInt(e.target.value));
+                          setSelectedWard(selected);
+                          // ✅ Cập nhật City ngay khi chọn xong Phường
+                          setCity(`${selected.name}, ${selectedDistrict.name}, ${selectedProvince.name}`);
+                        }}
+                        disabled={!selectedDistrict}
+                        required
+                      >
+                        <option value="" disabled>-- Chọn Phường/Xã --</option>
+                        {wards.map((ward) => (
+                          <option key={ward.code} value={ward.code}>{ward.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 <div className="md:col-span-2">
@@ -233,7 +371,7 @@ const Checkout = () => {
                   </div>
                 </label>
 
-                {/* ✅ TÙY CHỌN 2: VNPAY (MỚI) */}
+                {/* ✅ TÙY CHỌN 2: VNPAY */}
                 <label className={`flex items-center p-5 border-2 rounded-2xl cursor-pointer transition-all duration-300 ${paymentMethod === "VNPay" ? "border-teal-500 bg-teal-50/50 shadow-sm" : "border-gray-100 hover:border-teal-200"}`}>
                   <input type="radio" name="payment" value="VNPay" checked={paymentMethod === "VNPay"} onChange={(e) => setPaymentMethod(e.target.value)} className="w-5 h-5 text-teal-600 focus:ring-teal-500" />
                   <div className="ml-4 flex items-center gap-4">
@@ -247,7 +385,7 @@ const Checkout = () => {
                   </div>
                 </label>
 
-                {/* Tùy chọn 3: VietQR (Như cũ) */}
+                {/* Tùy chọn 3: VietQR */}
                 <label className={`flex items-center p-5 border-2 rounded-2xl cursor-pointer transition-all duration-300 ${paymentMethod === "Banking" ? "border-blue-500 bg-blue-50/50 shadow-sm" : "border-gray-100 hover:border-blue-200"}`}>
                   <input type="radio" name="payment" value="Banking" checked={paymentMethod === "Banking"} onChange={(e) => setPaymentMethod(e.target.value)} className="w-5 h-5 text-blue-600 focus:ring-blue-500" />
                   <div className="ml-4 flex items-center gap-4">
@@ -300,7 +438,7 @@ const Checkout = () => {
           </form>
         </div>
 
-        {/* --- CỘT PHẢI: TÓM TẮT ĐƠN HÀNG (Giữ nguyên) --- */}
+        {/* --- CỘT PHẢI: TÓM TẮT ĐƠN HÀNG --- */}
         <div className="lg:w-1/3">
           <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-xl shadow-gray-200/50 border border-gray-100 sticky top-28">
             <h3 className="text-xl font-black text-gray-800 mb-6 pb-4 border-b border-gray-100">

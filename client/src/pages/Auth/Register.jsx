@@ -1,6 +1,6 @@
 // client/src/pages/Auth/Register.jsx
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { FaEnvelope, FaLock, FaUser, FaEye, FaEyeSlash, FaGoogle, FaShieldAlt, FaArrowLeft } from 'react-icons/fa';
@@ -25,8 +25,21 @@ const Register = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { login } = useAuth();
+  // ✅ BỔ SUNG: Gọi thêm biến `user` từ Context
+  const { login, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // ✅ ĐÃ SỬA LỖI ĐƯỜNG DẪN TƯƠNG ĐỐI: Ép redirect luôn có dấu '/' ở đầu
+  const rawRedirect = location.search ? location.search.split('=')[1] : '/';
+  const redirect = rawRedirect.startsWith('/') ? rawRedirect : `/${rawRedirect}`;
+
+  // ✅ CHỐT CHẶN BẢO VỆ: Nếu đã đăng nhập thì tự động quay về trang chủ
+  useEffect(() => {
+    if (user) {
+      navigate(redirect);
+    }
+  }, [user, navigate, redirect]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -57,7 +70,7 @@ const Register = () => {
         password: formData.password
       });
       
-      // ✅ Thành công: Lưu email lại và chuyển sang form nhập OTP
+      // Thành công: Lưu email lại và chuyển sang form nhập OTP
       setRegisteredEmail(data.email);
       setStep(2); 
       toast.success(data.message || 'Mã OTP đã được gửi đến email của bạn!');

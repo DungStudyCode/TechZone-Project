@@ -9,7 +9,8 @@ const axios = require('axios');
 // ==================================================
 // Tạo Token
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'secret123', {
+  // ✅ ĐÃ SỬA: Xóa bỏ 'secret123' để đồng bộ tuyệt đối với authMiddleware.js. Hết lỗi văng tài khoản!
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: '30d', 
   });
 };
@@ -49,7 +50,7 @@ const sendOTPEmail = async (email, otp) => {
 };
 
 // ==================================================
-// 📝 1. ĐĂNG KÝ VÀ GỬI OTP (CẬP NHẬT)
+// 📝 1. ĐĂNG KÝ VÀ GỬI OTP
 // ==================================================
 const registerUser = async (req, res) => {
   const { name, email, password } = req.body;
@@ -61,7 +62,6 @@ const registerUser = async (req, res) => {
       if (user.isVerified) {
         return res.status(400).json({ message: 'Email này đã được sử dụng' });
       } else {
-        // Tài khoản tồn tại nhưng chưa kích hoạt -> Cập nhật lại OTP mới
         const otp = generateOTP();
         user.otp = otp;
         user.otpExpires = Date.now() + 15 * 60 * 1000;
@@ -74,7 +74,6 @@ const registerUser = async (req, res) => {
       }
     }
 
-    // Nếu chưa từng tồn tại -> Tạo mới hoàn toàn
     const otp = generateOTP();
     const otpExpires = Date.now() + 15 * 60 * 1000;
 
@@ -102,7 +101,7 @@ const registerUser = async (req, res) => {
 };
 
 // ==================================================
-// 🔑 1.1 XÁC THỰC MÃ OTP (MỚI THÊM)
+// 🔑 1.1 XÁC THỰC MÃ OTP
 // ==================================================
 const verifyOTP = async (req, res) => {
   try {
@@ -114,13 +113,11 @@ const verifyOTP = async (req, res) => {
     if (user.otp !== otp) return res.status(400).json({ message: 'Mã OTP không chính xác!' });
     if (user.otpExpires < Date.now()) return res.status(400).json({ message: 'Mã OTP đã hết hạn! Vui lòng đăng ký lại để nhận mã mới.' });
 
-    // Kích hoạt thành công
     user.isVerified = true;
     user.otp = undefined;
     user.otpExpires = undefined;
     await user.save();
 
-    // Trả thẳng token để đăng nhập luôn
     res.status(200).json({
       _id: user._id,
       name: user.name,
@@ -138,7 +135,7 @@ const verifyOTP = async (req, res) => {
 };
 
 // ==================================================
-// 🔓 2. ĐĂNG NHẬP (CẬP NHẬT BẢO MẬT)
+// 🔓 2. ĐĂNG NHẬP
 // ==================================================
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
@@ -147,7 +144,6 @@ const loginUser = async (req, res) => {
     const user = await User.findOne({ email });
 
     if (user && (await user.matchPassword(password))) {
-      // Chặn nếu chưa xác thực OTP
       if (!user.isVerified) {
         return res.status(403).json({ message: 'Tài khoản chưa được kích hoạt. Vui lòng đăng ký lại để nhận OTP!' });
       }
@@ -171,9 +167,9 @@ const loginUser = async (req, res) => {
 };
 
 // ==================================================
-// 🌐 CÁC HÀM KHÁC (GIỮ NGUYÊN)
+// 🌐 CÁC HÀM KHÁC
 // ==================================================
-const getUsersCRM = async (req, res) => { /* Code cũ của bạn */ 
+const getUsersCRM = async (req, res) => { 
   try {
     const usersCRM = await User.aggregate([
       { $lookup: { from: 'orders', localField: '_id', foreignField: 'user', as: 'userOrders' } },
@@ -191,7 +187,7 @@ const getUsersCRM = async (req, res) => { /* Code cũ của bạn */
   }
 };
 
-const sendMarketingEmail = async (req, res) => { /* Code cũ của bạn */ 
+const sendMarketingEmail = async (req, res) => { 
   try {
     const { email, subject, content } = req.body;
     const transporter = nodemailer.createTransport({
@@ -203,12 +199,13 @@ const sendMarketingEmail = async (req, res) => { /* Code cũ của bạn */
   } catch (error) { res.status(500).json({ message: 'Lỗi gửi email' }); }
 };
 
-const getUserProfile = async (req, res) => { /* Code cũ của bạn */ 
-  const user = await User.findById(req.user._id);
+const getUserProfile = async (req, res) => { 
+  // ✅ BẢO MẬT: Chặn không cho trả về mật khẩu và các trường OTP
+  const user = await User.findById(req.user._id).select('-password -otp -otpExpires');
   if (user) { res.json(user); } else { res.status(404).json({ message: 'Không tìm thấy' }); }
 };
 
-const updateUserProfile = async (req, res) => { /* Code cũ của bạn */ 
+const updateUserProfile = async (req, res) => { 
   const user = await User.findById(req.user._id);
   if (user) {
     user.name = req.body.name || user.name;
@@ -216,19 +213,32 @@ const updateUserProfile = async (req, res) => { /* Code cũ của bạn */
     if (req.body.avatar !== undefined) user.avatar = req.body.avatar;
     if (req.body.password) user.password = req.body.password;
     if (req.body.addresses !== undefined) user.addresses = req.body.addresses;
+    
     const updatedUser = await user.save();
-    res.json({ ...updatedUser._doc, token: generateToken(updatedUser._id) });
+    
+    // ✅ BẢO MẬT: Bóc tách trả về đích danh các trường, KHÔNG ĐƯỢC dùng ...updatedUser._doc
+    res.json({
+      _id: updatedUser._id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      isAdmin: updatedUser.isAdmin,
+      loyaltyScore: updatedUser.loyaltyScore,
+      customerSegment: updatedUser.customerSegment,
+      avatar: updatedUser.avatar,
+      addresses: updatedUser.addresses,
+      token: generateToken(updatedUser._id)
+    });
   } else { res.status(404).json({ message: 'Không tìm thấy' }); }
 };
 
-const getWishlist = async (req, res) => { /* Code cũ của bạn */ 
+const getWishlist = async (req, res) => { 
   try {
     const user = await User.findById(req.user._id).populate('wishlist');
     if (user) res.json(user.wishlist); else res.status(404).json({ message: 'Không tìm thấy' });
   } catch (error) { res.status(500).json({ message: 'Lỗi' }); }
 };
 
-const toggleWishlist = async (req, res) => { /* Code cũ của bạn */ 
+const toggleWishlist = async (req, res) => { 
   try {
     const { productId } = req.body;
     const user = await User.findById(req.user._id);
@@ -242,20 +252,25 @@ const toggleWishlist = async (req, res) => { /* Code cũ của bạn */
   } catch (error) { res.status(500).json({ message: 'Lỗi' }); }
 };
 
-const forgotPassword = async (req, res) => { /* Code cũ của bạn */ 
+const forgotPassword = async (req, res) => { 
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: "Không tìm thấy Email!" });
+    
     const resetToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '15m' });
-    const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
+    
+    // ✅ SỬA LỖI: Dùng biến môi trường để linh động giữa Localhost và Deploy thật
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+    const resetUrl = `${clientUrl}/reset-password/${resetToken}`;
+    
     const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS } });
     await transporter.sendMail({ from: `"TechZone" <${process.env.EMAIL_USER}>`, to: user.email, subject: "Khôi phục mật khẩu", html: `<a href="${resetUrl}">Khôi phục</a>` });
     res.status(200).json({ message: "Đã gửi email khôi phục." });
   } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
-const resetPassword = async (req, res) => { /* Code cũ của bạn */ 
+const resetPassword = async (req, res) => { 
   try {
     const decoded = jwt.verify(req.params.token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.id);
@@ -267,7 +282,7 @@ const resetPassword = async (req, res) => { /* Code cũ của bạn */
 };
 
 // =========================================================
-// 🚀 3. ĐĂNG NHẬP BẰNG GOOGLE (CẬP NHẬT BẢO MẬT)
+// 🚀 3. ĐĂNG NHẬP BẰNG GOOGLE
 // =========================================================
 const googleLogin = async (req, res) => {
   try {
@@ -285,7 +300,7 @@ const googleLogin = async (req, res) => {
         email,
         avatar: picture,
         password: Date.now().toString() + Math.random().toString(), 
-        isVerified: true // ✅ Bỏ qua OTP vì Gmail của Google đã uy tín tuyệt đối
+        isVerified: true 
       });
     }
 
@@ -305,10 +320,9 @@ const googleLogin = async (req, res) => {
   }
 };
 
-// ✅ XUẤT KHẨU ĐẦY ĐỦ
 module.exports = { 
   registerUser, 
-  verifyOTP, // Mới thêm
+  verifyOTP, 
   loginUser, 
   getUsersCRM, 
   sendMarketingEmail,

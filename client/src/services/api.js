@@ -54,4 +54,23 @@ api.interceptors.response.use(
   }
 );
 
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    // 🔍 THÊM ĐOẠN ĐỂ BẮT ĐÚNG BỆNH TRÊN LOCALHOST
+    console.log("🛑 Axios bắt được lỗi phản hồi từ Server tại Local:");
+    console.log("Mã trạng thái (Status):", error.response?.status);
+    console.log("Dữ liệu lỗi (Data):", error.response?.data);
+
+    if (error.response && error.response.status === 401) {
+      console.warn("Phiên đăng nhập hết hạn. Đang tự động đăng xuất...");
+      localStorage.removeItem('userInfo');
+      window.location.href = '/login?expired=true';
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;

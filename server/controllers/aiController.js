@@ -6,147 +6,151 @@ require('dotenv').config();
 // Khởi tạo Gemini với API Key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// ✅ BỘ TỪ KHÓA CHÀO HỎI (Heuristic Filter)
+const greetingKeywords = ['hi', 'hello', 'chào', 'xin chào', 'alo', 'có ai không', 'ê', 'shop ơi', 'tư vấn', 'cho mình hỏi'];
+
 exports.chatWithAI = async (req, res) => {
   try {
     const { message } = req.body;
+    let parsedMessage = message.toLowerCase().trim();
     
-    // --- BƯỚC 1: TÌM KIẾM VÀ LẤY DỮ LIỆU ĐÁNH GIÁ ---
-    let relatedProducts = [];
-    
-    // 1. Dịch các từ viết tắt phổ biến của khách hàng để DB hiểu được
-    let parsedMessage = message.toLowerCase();
-    parsedMessage = parsedMessage.replace(/\bip\b/g, 'iphone');
-    parsedMessage = parsedMessage.replace(/\bss\b/g, 'samsung');
-    parsedMessage = parsedMessage.replace(/\bprm\b/g, 'pro max');
+    // --- BƯỚC 1: KIỂM TRA PHÂN LOẠI TIN NHẮN (CHÀO HỎI HAY TÌM HÀNG) ---
+    // Kiểm tra xem tin nhắn có trùng khớp hoàn toàn hoặc chứa phần lớn các từ chào hỏi không
+    const isGreeting = greetingKeywords.some(keyword => parsedMessage === keyword || (parsedMessage.includes(keyword) && parsedMessage.length < 15));
 
-    // 2. Tách từ khóa: ✅ SỬA word.length > 2 THÀNH word.length > 1
-    // Điều này giúp hệ thống lấy được các từ ngắn như "ip", "15", "s24"
-    const keywords = parsedMessage.split(' ').filter(word => word.trim().length > 1);
-    
-    if (keywords.length > 0) {
-    const regexQueries = keywords.map(word => ({ 
-        name: { $regex: word, $options: 'i' } 
-    }));
-
-    // TÌM KIẾM VÀ SẮP XẾP ƯU TIÊN (RANKING LOGIC)
-    const productsRaw = await Product.find({ 
-        $or: regexQueries 
-    })
-    // Thêm các trường mới vào select để AI có dữ liệu phân tích
-    .select('name price image slug description rating numReviews reviews isPromoted soldCount') 
-    // Logic sắp xếp: isPromoted (Hot) -> Rating (Sao) -> SoldCount (Bán chạy)
-    .sort({ 
-        isPromoted: -1, 
-        rating: -1, 
-        soldCount: -1 
-    })
-    .limit(5); // Tăng lên 5 để AI có nhiều lựa chọn tốt nhất
-
-    // XỬ LÝ DỮ LIỆU TRẢ VỀ (Thêm nhãn Hot/Best Seller cho AI biết)
-    relatedProducts = productsRaw.map(p => {
-        const topReviews = p.reviews && p.reviews.length > 0
-            ? p.reviews.slice(-3).map(r => `"${r.comment}" (${r.rating} sao)`).join("; ")
-            : "Chưa có đánh giá chi tiết";
-
-        // Tạo nhãn thông báo độ "Hot" cho AI
-        let statusTag = "";
-        if (p.isPromoted) statusTag = "[SẢN PHẨM HOT ĐANG KHUYẾN MÃI]";
-        else if (p.soldCount > 50) statusTag = "[BÁN CHẠY NHẤT]";
-
-        return {
-            _id: p._id,
-            name: `${statusTag} ${p.name}`, // Gắn nhãn vào tên để AI dễ nhận biết
-            price: p.price,
-            image: p.image,
-            slug: p.slug,
-            rating: p.rating,          
-            numReviews: p.numReviews,
-            recentReviews: topReviews  
-        };
-    });
-}
-    // --- BƯỚC 2: CHUẨN BỊ CONTEXT CHO AI ---
-    let productContext = "";
-    if (relatedProducts.length > 0) {
-        // ✅ ĐÃ SỬA LỖI: Thêm 'slug' vào context để AI có dữ liệu tạo link
-        const contextForAI = relatedProducts.map(p => ({
-            name: p.name,
-            price: p.price,
-            rating: p.rating,
-            slug: p.slug, // AI sẽ lấy trường này để gắn vào thẻ <a>
-            reviews: p.recentReviews 
-        }));
-
-        productContext = `
-        DANH SÁCH SẢN PHẨM TRONG KHO VÀ ĐÁNH GIÁ:
-        ${JSON.stringify(contextForAI)}
-        `;
-    } else {
-        // Xử lý trường hợp khách hỏi đồ không có trong kho
-        productContext = `DANH SÁCH SẢN PHẨM TRONG KHO: Không tìm thấy sản phẩm nào khớp với yêu cầu của khách.`;
-    }
-
-    // --- BƯỚC 3: CẤU HÌNH MODEL ---
     const model = genAI.getGenerativeModel({ 
         model: "gemini-2.5-flash", 
         safetySettings: [
             { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" }
         ]
     });
-    
-    // Tạo Prompt
-    const prompt = `
-      Bạn là nhân viên tư vấn nhiệt tình của TechZone.
-      Khách hàng hỏi: "${message}"
-      
-      ${productContext}
 
-      YÊU CẦU TRẢ LỜI BẮT BUỘC:
-      1. Ngắn gọn, thân thiện (dưới 100 từ).
-      2. Nếu danh sách sản phẩm rỗng, TUYỆT ĐỐI KHÔNG tự chế ra sản phẩm. Hãy xin lỗi và báo hết hàng.
-      3. Nếu có sản phẩm, hãy giới thiệu giá và BẮT BUỘC chèn link mua hàng bằng thẻ HTML.
-         - Cú pháp chuẩn: <br><a href="/product/tên-slug" class="text-blue-600 font-bold underline">👉 Nhấn vào đây để xem chi tiết và mua [Tên Sản Phẩm]</a>
-         - Thay "tên-slug" bằng dữ liệu từ trường "slug" tôi cung cấp.
-      4. Hãy tóm tắt ngắn gọn đánh giá của khách hàng (dựa trên "rating" và "reviews").
-      5. Tuyệt đối KHÔNG dùng ký tự ** (in đậm). Chỉ dùng văn bản thường hoặc thẻ <b>.
-      6. ƯU TIÊN SẢN PHẨM: Trong danh sách tôi cung cấp, những máy có nhãn [SẢN PHẨM HOT] hoặc [BÁN CHẠY NHẤT] là những máy tốt nhất. Hãy ưu tiên giới thiệu chúng trước và dùng lời lẽ thuyết phục để khách hàng cân nhắc.
-      7. HIỂN THỊ: Giữ nguyên các nhãn [SẢN PHẨM HOT] trong câu trả lời để tạo sự chú ý.
-    `;
+    let prompt = "";
+    let relatedProducts = [];
 
-    // Gửi yêu cầu
+    // ==========================================
+    // NHÁNH 1: KỊCH BẢN CHÀO HỎI (Không query Database)
+    // ==========================================
+    if (isGreeting) {
+        prompt = `
+          Bạn là "Trợ lý ảo TechZone" - nhân viên tư vấn siêu thân thiện và am hiểu công nghệ của hệ thống bán lẻ TechZone.
+          Khách hàng vừa nói: "${message}"
+
+          YÊU CẦU TRẢ LỜI:
+          1. Chào lại khách hàng một cách lịch sự, vui vẻ.
+          2. Hỏi xem khách hàng đang quan tâm đến dòng sản phẩm nào (Điện thoại, Laptop, Phụ kiện, v.v.).
+          3. Tuyệt đối KHÔNG nhắc đến chữ "hết hàng" hay "không tìm thấy sản phẩm".
+          4. Trả lời ngắn gọn dưới 50 từ.
+        `;
+    } 
+    // ==========================================
+    // NHÁNH 2: KỊCH BẢN TƯ VẤN SẢN PHẨM (Kích hoạt RAG)
+    // ==========================================
+    else {
+        // Dịch các từ viết tắt phổ biến
+        parsedMessage = parsedMessage.replace(/\bip\b/g, 'iphone');
+        parsedMessage = parsedMessage.replace(/\bss\b/g, 'samsung');
+        parsedMessage = parsedMessage.replace(/\bprm\b/g, 'pro max');
+
+        const keywords = parsedMessage.split(' ').filter(word => word.trim().length > 1);
+        
+        if (keywords.length > 0) {
+            const regexQueries = keywords.map(word => ({ 
+                name: { $regex: word, $options: 'i' } 
+            }));
+
+            // TÌM KIẾM VÀ SẮP XẾP ƯU TIÊN
+            const productsRaw = await Product.find({ $or: regexQueries })
+                .select('name price image slug description rating numReviews reviews isPromoted soldCount category') 
+                .sort({ isPromoted: -1, rating: -1, soldCount: -1 })
+                .limit(4);
+
+            relatedProducts = productsRaw.map(p => {
+                const topReviews = p.reviews && p.reviews.length > 0
+                    ? p.reviews.slice(-2).map(r => `"${r.comment}" (${r.rating} sao)`).join("; ")
+                    : "Chưa có đánh giá";
+
+                let statusTag = "";
+                if (p.isPromoted) statusTag = "[🔥 ĐANG KHUYẾN MÃI]";
+                else if (p.soldCount > 50) statusTag = "[🌟 BÁN CHẠY]";
+
+                return {
+                    _id: p._id,
+                    name: `${statusTag} ${p.name}`, 
+                    price: p.price,
+                    image: p.image,
+                    slug: p.slug,
+                    rating: p.rating,          
+                    reviews: topReviews,
+                    category: p.category
+                };
+            });
+        }
+
+        // Lấy thêm 2 sản phẩm Hot nhất hệ thống để "Chữa cháy" nếu hàng khách hỏi bị hết
+        let fallbackProducts = [];
+        if (relatedProducts.length === 0) {
+             const hotItems = await Product.find({ isPromoted: true }).select('name slug price').limit(2);
+             fallbackProducts = hotItems.map(h => ({ name: h.name, slug: h.slug, price: h.price }));
+        }
+
+        // CHUẨN BỊ CONTEXT CHO AI
+        let productContext = "";
+        if (relatedProducts.length > 0) {
+            productContext = `
+            DỮ LIỆU SẢN PHẨM TÌM ĐƯỢC:
+            ${JSON.stringify(relatedProducts.map(p => ({ name: p.name, price: p.price, slug: p.slug, reviews: p.reviews })))}
+            `;
+        } else {
+            productContext = `
+            KẾT QUẢ: Không tìm thấy sản phẩm khách yêu cầu.
+            GỢI Ý CHỮA CHÁY (Các sản phẩm Hot khác đang có sẵn): ${JSON.stringify(fallbackProducts)}
+            `;
+        }
+
+        // Tạo Prompt Tư vấn
+        prompt = `
+          Bạn là nhân viên tư vấn nhiệt tình của TechZone.
+          Khách hàng hỏi: "${message}"
+          
+          ${productContext}
+
+          YÊU CẦU TRẢ LỜI:
+          1. Nếu tìm thấy sản phẩm: Báo giá, tóm tắt đánh giá ngắn gọn. BẮT BUỘC chèn link mua hàng bằng thẻ: <br><a href="/product/tên-slug" class="text-blue-600 font-bold underline">👉 Xem chi tiết [Tên Sản Phẩm]</a>
+          2. Nếu KHÔNG tìm thấy sản phẩm khách hỏi: Hãy xin lỗi khéo léo. Sau đó, CHỦ ĐỘNG giới thiệu "GỢI Ý CHỮA CHÁY" (nếu có) và chèn link của các sản phẩm gợi ý đó.
+          3. Nếu có nhãn [🔥 ĐANG KHUYẾN MÃI] hoặc [🌟 BÁN CHẠY], hãy nhấn mạnh để kích thích khách mua.
+          4. Trình bày thân thiện, ngắn gọn (dưới 100 từ), dùng thẻ <br> để xuống dòng cho dễ nhìn. Tuyệt đối KHÔNG dùng ký tự **.
+        `;
+    }
+
+    // --- BƯỚC 3: GỬI LÊN GEMINI VÀ XỬ LÝ KẾT QUẢ ---
     const result = await model.generateContent(prompt);
     let textResponse = result.response.text();
 
     // Làm sạch chuỗi
     textResponse = textResponse.replace(/\*\*/g, '').replace(/##/g, '').trim();
 
-    // --- BƯỚC 4: TRẢ KẾT QUẢ ---
     res.json({
         reply: textResponse,
-        products: relatedProducts 
+        products: relatedProducts // Vẫn trả về mảng sản phẩm để frontend hiện thẻ UI (nếu có)
     });
 
   } catch (error) {
     console.error("Chatbot Error:", error);
     res.status(500).json({ 
-        reply: "Xin lỗi, hiện tại tôi đang bị quá tải một chút. Bạn vui lòng hỏi lại sau ít phút nhé!",
+        reply: "Xin lỗi, đường truyền của tôi đang gặp chút trục trặc. Bạn có thể hỏi lại được không?",
         products: []
     });
   }
 };
 
-// Thêm API tạo thư Marketing
+// ... (Giữ nguyên hàm generateMarketingEmail bên dưới của bạn) ...
 exports.generateMarketingEmail = async (req, res) => {
   try {
     const { name, totalSpent, orderCount, segment } = req.body;
-    
-    // Gọi lại genAI đã khởi tạo ở trên cùng file
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // Đặt lệnh cho AI
     const prompt = `
       Bạn là Giám đốc CSKH của hệ thống bán lẻ công nghệ TechZone.
       Nhiệm vụ: Viết 1 đoạn Email cá nhân hóa cực kỳ khéo léo để tri ân khách hàng và mời họ mua sắm tiếp.

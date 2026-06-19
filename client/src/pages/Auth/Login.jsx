@@ -12,35 +12,35 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  // ✅ STATE: Lưu danh sách tài khoản đã từng đăng nhập trên máy này
-  const [recentAccounts, setRecentAccounts] = useState([]);
+  const [recentAccounts, setRecentAccounts] = useState(() => {
+    const saved = localStorage.getItem('tz_recent_accounts');
+    return saved ? JSON.parse(saved) : [];
+  });
 
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const redirect = location.search ? location.search.split('=')[1] : '/';
+  
+  const rawRedirect = location.search ? location.search.split('=')[1] : '/';
+  const redirect = rawRedirect.startsWith('/') ? rawRedirect : `/${rawRedirect}`;
 
-  // Khi mở trang, đọc danh sách tài khoản cũ từ Local Storage
   useEffect(() => {
-    const saved = localStorage.getItem('tz_recent_accounts');
-    if (saved) {
-      setRecentAccounts(JSON.parse(saved));
+    if (user) {
+      navigate(redirect);
     }
-  }, []);
+  }, [user, navigate, redirect]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // ✅ HÀM: Chọn tài khoản từ danh sách gợi ý
   const selectRecentAccount = (email) => {
-    setFormData({ email: email, password: '' }); // Chỉ điền email, xóa trống mật khẩu
-    document.getElementById('passwordInput').focus(); // Tự động trỏ chuột vào ô mật khẩu
+    setFormData({ email: email, password: '' }); 
+    document.getElementById('passwordInput').focus(); 
   };
 
-  // ✅ HÀM: Xóa một tài khoản khỏi danh sách gợi ý
   const removeRecentAccount = (e, emailToRemove) => {
-    e.stopPropagation(); // Ngăn sự kiện click lan ra ngoài
+    e.stopPropagation(); 
     const updatedAccounts = recentAccounts.filter(acc => acc.email !== emailToRemove);
     setRecentAccounts(updatedAccounts);
     localStorage.setItem('tz_recent_accounts', JSON.stringify(updatedAccounts));
@@ -57,10 +57,9 @@ const Login = () => {
         password: formData.password
       });
       
-      // ✅ LOGIC: Cập nhật danh sách "Tài khoản gần đây" (Chỉ lưu Tên, Email, Avatar)
       const newAccount = { email: data.email, name: data.name, avatar: data.avatar };
-      const filtered = recentAccounts.filter(acc => acc.email !== data.email); // Bỏ cái cũ nếu trùng
-      const updatedList = [newAccount, ...filtered].slice(0, 3); // Lưu tối đa 3 tài khoản gần nhất
+      const filtered = recentAccounts.filter(acc => acc.email !== data.email); 
+      const updatedList = [newAccount, ...filtered].slice(0, 3); 
       
       localStorage.setItem('tz_recent_accounts', JSON.stringify(updatedList));
 
@@ -80,7 +79,6 @@ const Login = () => {
       try {
         const { data } = await api.post('/users/google-login', { access_token: tokenResponse.access_token });
         
-        // Cập nhật gợi ý tài khoản cho Google Login
         const newAccount = { email: data.email, name: data.name, avatar: data.avatar };
         const filtered = recentAccounts.filter(acc => acc.email !== data.email);
         const updatedList = [newAccount, ...filtered].slice(0, 3);
@@ -106,7 +104,6 @@ const Login = () => {
           <h3 className="text-2xl font-bold text-gray-800 mb-2">Đăng nhập</h3>
           <p className="text-gray-500 text-sm mb-6">Vui lòng nhập thông tin tài khoản của bạn</p>
 
-          {/* ✅ KHU VỰC HIỂN THỊ TÀI KHOẢN GẦN ĐÂY (STYLE FACEBOOK) */}
           {recentAccounts.length > 0 && (
             <div className="mb-6">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Tài khoản trên máy này</p>
@@ -186,15 +183,23 @@ const Login = () => {
 
           <button 
             type="button" onClick={() => handleGoogleLogin()}
-            className="mt-6 w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-100 hover:bg-gray-50 text-gray-700 font-bold py-3.5 rounded-xl"
+            className="mt-6 w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-100 hover:bg-gray-50 text-gray-700 font-bold py-3.5 rounded-xl mb-6"
           >
             <FaGoogle className="text-red-500 text-lg" /> Đăng nhập bằng Google
           </button>
+
+          {/* ✅ NÚT CHUYỂN SANG TRANG ĐĂNG KÝ ĐÃ ĐƯỢC THÊM VÀO ĐÂY */}
+          <p className="text-center text-sm text-gray-600 font-medium border-t border-gray-100 pt-6">
+            Chưa có tài khoản?{' '}
+            <Link to="/register" className="text-purple-600 hover:text-purple-800 font-bold transition-colors underline decoration-2 underline-offset-4">
+              Đăng ký ngay
+            </Link>
+          </p>
+
         </div>
 
         {/* CỘT PHẢI */}
         <div className="md:w-1/2 bg-purple-700 text-white p-12 flex flex-col justify-center relative overflow-hidden order-1 md:order-2">
-          {/* ... (Giữ nguyên giao diện cột phải của bạn) ... */}
           <div className="relative z-10 pl-4 border-l-4 border-purple-400">
             <h2 className="text-4xl font-black mb-6">TechZone</h2>
             <p className="text-purple-100 text-lg leading-relaxed font-medium">Chào mừng bạn quay trở lại! Đăng nhập để tiếp tục mua sắm.</p>

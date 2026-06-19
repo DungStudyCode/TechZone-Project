@@ -8,7 +8,9 @@ const protect = async (req, res, next) => {
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
       token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret123');
+      
+      // ✅ ĐÃ SỬA: Xóa bỏ đuôi 'secret123'. Bắt buộc Backend phải dùng đúng JWT_SECRET từ file .env
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
       
       req.user = await User.findById(decoded.id).select('-password');
       

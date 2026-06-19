@@ -13,6 +13,7 @@
     "@react-oauth/google": "^0.13.4",
     "@tailwindcss/postcss": "^4.1.18",
     "axios": "^1.13.2",
+    "emoji-picker-react": "^4.19.1",
     "leaflet": "^1.9.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

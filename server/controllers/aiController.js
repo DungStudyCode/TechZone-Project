@@ -6,7 +6,6 @@ require('dotenv').config();
 // Khởi tạo Gemini với API Key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// ✅ BỘ TỪ KHÓA CHÀO HỎI (Heuristic Filter)
 const greetingKeywords = ['hi', 'hello', 'chào', 'xin chào', 'alo', 'có ai không', 'ê', 'shop ơi', 'tư vấn', 'cho mình hỏi'];
 
 exports.chatWithAI = async (req, res) => {
@@ -14,8 +13,6 @@ exports.chatWithAI = async (req, res) => {
     const { message } = req.body;
     let parsedMessage = message.toLowerCase().trim();
     
-    // --- BƯỚC 1: KIỂM TRA PHÂN LOẠI TIN NHẮN (CHÀO HỎI HAY TÌM HÀNG) ---
-    // Kiểm tra xem tin nhắn có trùng khớp hoàn toàn hoặc chứa phần lớn các từ chào hỏi không
     const isGreeting = greetingKeywords.some(keyword => parsedMessage === keyword || (parsedMessage.includes(keyword) && parsedMessage.length < 15));
 
     const model = genAI.getGenerativeModel({ 
@@ -29,9 +26,6 @@ exports.chatWithAI = async (req, res) => {
     let prompt = "";
     let relatedProducts = [];
 
-    // ==========================================
-    // NHÁNH 1: KỊCH BẢN CHÀO HỎI (Không query Database)
-    // ==========================================
     if (isGreeting) {
         prompt = `
           Bạn là "Trợ lý ảo TechZone" - nhân viên tư vấn siêu thân thiện và am hiểu công nghệ của hệ thống bán lẻ TechZone.
@@ -44,11 +38,7 @@ exports.chatWithAI = async (req, res) => {
           4. Trả lời ngắn gọn dưới 50 từ.
         `;
     } 
-    // ==========================================
-    // NHÁNH 2: KỊCH BẢN TƯ VẤN SẢN PHẨM (Kích hoạt RAG)
-    // ==========================================
     else {
-        // Dịch các từ viết tắt phổ biến
         parsedMessage = parsedMessage.replace(/\bip\b/g, 'iphone');
         parsedMessage = parsedMessage.replace(/\bss\b/g, 'samsung');
         parsedMessage = parsedMessage.replace(/\bprm\b/g, 'pro max');
@@ -60,7 +50,6 @@ exports.chatWithAI = async (req, res) => {
                 name: { $regex: word, $options: 'i' } 
             }));
 
-            // TÌM KIẾM VÀ SẮP XẾP ƯU TIÊN
             const productsRaw = await Product.find({ $or: regexQueries })
                 .select('name price image slug description rating numReviews reviews isPromoted soldCount category') 
                 .sort({ isPromoted: -1, rating: -1, soldCount: -1 })
@@ -88,14 +77,12 @@ exports.chatWithAI = async (req, res) => {
             });
         }
 
-        // Lấy thêm 2 sản phẩm Hot nhất hệ thống để "Chữa cháy" nếu hàng khách hỏi bị hết
         let fallbackProducts = [];
         if (relatedProducts.length === 0) {
              const hotItems = await Product.find({ isPromoted: true }).select('name slug price').limit(2);
              fallbackProducts = hotItems.map(h => ({ name: h.name, slug: h.slug, price: h.price }));
         }
 
-        // CHUẨN BỊ CONTEXT CHO AI
         let productContext = "";
         if (relatedProducts.length > 0) {
             productContext = `
@@ -109,7 +96,6 @@ exports.chatWithAI = async (req, res) => {
             `;
         }
 
-        // Tạo Prompt Tư vấn
         prompt = `
           Bạn là nhân viên tư vấn nhiệt tình của TechZone.
           Khách hàng hỏi: "${message}"
@@ -124,28 +110,27 @@ exports.chatWithAI = async (req, res) => {
         `;
     }
 
-    // --- BƯỚC 3: GỬI LÊN GEMINI VÀ XỬ LÝ KẾT QUẢ ---
     const result = await model.generateContent(prompt);
     let textResponse = result.response.text();
 
-    // Làm sạch chuỗi
     textResponse = textResponse.replace(/\*\*/g, '').replace(/##/g, '').trim();
 
     res.json({
         reply: textResponse,
-        products: relatedProducts // Vẫn trả về mảng sản phẩm để frontend hiện thẻ UI (nếu có)
+        products: relatedProducts 
     });
 
   } catch (error) {
     console.error("Chatbot Error:", error);
+    
+    // ✅ ĐÃ SỬA: Phóng thẳng lỗi thật của Google ra ngoài UI để xem Server đang bị gì
     res.status(500).json({ 
-        reply: "Xin lỗi, đường truyền của tôi đang gặp chút trục trặc. Bạn có thể hỏi lại được không?",
+        reply: `[LỖI TỪ SERVER]: ${error.message || 'Lỗi không xác định'}. Vui lòng kiểm tra lại cấu hình Hosting!`,
         products: []
     });
   }
 };
 
-// ... (Giữ nguyên hàm generateMarketingEmail bên dưới của bạn) ...
 exports.generateMarketingEmail = async (req, res) => {
   try {
     const { name, totalSpent, orderCount, segment } = req.body;
@@ -175,6 +160,6 @@ exports.generateMarketingEmail = async (req, res) => {
     res.json({ emailContent: textResponse.trim() });
   } catch (error) {
     console.error("Lỗi tạo email AI:", error);
-    res.status(500).json({ message: "Lỗi khi gọi Gemini AI" });
+    res.status(500).json({ message: `Lỗi AI: ${error.message}` });
   }
 };

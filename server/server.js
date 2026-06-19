@@ -81,12 +81,24 @@ io.on('connection', (socket) => {
 
   socket.on('setup_user', (userId) => {
     socket.join(userId);
-    console.log(`🔔 User ${userId} đã sẵn sàng nhận thông báo`);
   });
 
   socket.on('join_chat', (conversationId) => {
     socket.join(conversationId);
-    console.log(`🤝 User tham gia phòng chat kín: ${conversationId}`);
+  });
+
+  // ✅ XỬ LÝ ĐANG GÕ... (TYPING)
+  socket.on('typing_start', ({ conversationId, userId }) => {
+    socket.to(conversationId).emit('friend_typing', userId);
+  });
+
+  socket.on('typing_stop', ({ conversationId, userId }) => {
+    socket.to(conversationId).emit('friend_stopped_typing', userId);
+  });
+
+  // ✅ ĐỒNG BỘ "ĐÃ XEM"
+  socket.on('mark_read', ({ conversationId, userId }) => {
+    socket.to(conversationId).emit('messages_read', conversationId);
   });
 
   socket.on('send_message', (data) => {

@@ -3,6 +3,21 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const Product = require('../models/Product');
 require('dotenv').config();
 
+// ===================================================================
+// ✅ BỔ SUNG CẤU HÌNH PROXY ĐỂ VƯỢT RÀO CHẶN IP TỪ GOOGLE
+// ===================================================================
+const fetch = require("node-fetch");
+const { SocksProxyAgent } = require("socks-proxy-agent");
+
+// Khởi tạo Agent trỏ vào cổng 40000 của Cloudflare WARP (Chạy ngầm cục bộ)
+const proxyAgent = new SocksProxyAgent("socks5://127.0.0.1:40000");
+
+// Ghi đè hàm fetch toàn cục: Ép thư viện Gemini tự động đi qua Proxy này
+globalThis.fetch = (url, options) => {
+    return fetch(url, { ...options, agent: proxyAgent });
+};
+// ===================================================================
+
 // Khởi tạo Gemini với API Key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -123,7 +138,6 @@ exports.chatWithAI = async (req, res) => {
   } catch (error) {
     console.error("Chatbot Error:", error);
     
-    // ✅ ĐÃ SỬA: Phóng thẳng lỗi thật của Google ra ngoài UI để xem Server đang bị gì
     res.status(500).json({ 
         reply: `[LỖI TỪ SERVER]: ${error.message || 'Lỗi không xác định'}. Vui lòng kiểm tra lại cấu hình Hosting!`,
         products: []

@@ -5,7 +5,7 @@ import api from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
 import io from "socket.io-client";
 import EmojiPicker from "emoji-picker-react"; 
-import { toast } from "react-toastify"; // ✅ Bổ sung thư viện Toast
+import { toast } from "react-toastify"; 
 import {
   FaPaperPlane,
   FaArrowLeft,
@@ -25,7 +25,6 @@ const getSocketUrl = () => {
 
 const socket = io(getSocketUrl(), { transports: ["websocket", "polling"] });
 
-// ✅ Âm thanh thông báo tin nhắn mới
 const NOTIFICATION_SOUND_URL = 'https://actions.google.com/sounds/v1/water/water_drop.ogg';
 
 const MessengerPage = () => {
@@ -54,7 +53,6 @@ const MessengerPage = () => {
   const emojiPickerRef = useRef(null); 
   const fileInputRef = useRef(null); 
 
-  // 1. Click outside để đóng Emoji Picker
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -68,7 +66,6 @@ const MessengerPage = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 2. Fetch danh sách chat
   useEffect(() => {
     const fetchConversations = async () => {
       try {
@@ -89,7 +86,6 @@ const MessengerPage = () => {
     }
   }, [user, initialChatId]);
 
-  // 3. Tải tin nhắn (Page 1) - Có chống lỗi ESLint
   useEffect(() => {
     const fetchInitialMessages = async () => {
       if (!currentChat || !user) return;
@@ -121,7 +117,6 @@ const MessengerPage = () => {
     fetchInitialMessages();
   }, [currentChat, user]);
 
-  // 4. Infinite Scrolling
   const handleScroll = async () => {
     const container = chatContainerRef.current;
     if (!container || isLoadMoreLoading || !hasMore) return;
@@ -153,18 +148,14 @@ const MessengerPage = () => {
     }
   };
 
-  // 5. Socket Listeners (Đã tích hợp Âm thanh, Toast và Đẩy lên top)
   useEffect(() => {
     const messageHandler = (message) => {
       const isMyMessage = message.sender._id === user._id;
 
-      // 🔴 NẾU NGƯỜI KHÁC GỬI TIN NHẮN TỚI
       if (!isMyMessage) {
-          // Phát âm thanh
           const audio = new Audio(NOTIFICATION_SOUND_URL);
-          audio.play().catch(error => console.log('Trình duyệt chặn phát âm thanh:', error));
+          audio.play().catch(() => console.log('Trình duyệt chặn phát âm thanh'));
 
-          // Hiện Toast nếu không mở đúng phòng chat đó
           if (!currentChat || currentChat._id !== message.conversationId) {
               const msgPreview = message.imageUrl ? '[Hình ảnh]' : message.text;
               toast.info(`💬 ${message.sender.name}: ${msgPreview}`, {
@@ -179,7 +170,6 @@ const MessengerPage = () => {
           }
       }
 
-      // 🔴 CẬP NHẬT LẠI DANH SÁCH BÊN TRÁI & ĐẨY LÊN ĐẦU TIÊN
       setConversations(prev => {
           let updated = [...prev];
           const chatIndex = updated.findIndex(c => c._id === message.conversationId);
@@ -194,14 +184,12 @@ const MessengerPage = () => {
           return updated;
       });
 
-      // 🔴 NẾU ĐANG MỞ ĐÚNG PHÒNG CHAT
       if (currentChat && currentChat._id === message.conversationId) {
         setMessages((prev) => {
           if (prev.some((m) => m._id === message._id)) return prev;
           return [...prev, message];
         });
 
-        // Tự động báo đã xem
         if (!isMyMessage) {
             socket.emit("mark_read", {
               conversationId: currentChat._id,
@@ -319,7 +307,6 @@ const MessengerPage = () => {
 
       setMessages([...messages, msgData]);
       
-      // ✅ Đã sửa: Đẩy cuộc hội thoại lên Top 1 khi gửi ảnh
       setConversations((prev) => {
         let updated = [...prev];
         const idx = updated.findIndex((c) => c._id === currentChat._id);
@@ -372,7 +359,6 @@ const MessengerPage = () => {
       setMessages([...messages, data]);
       setNewMessage("");
       
-      // ✅ Đã sửa: Đẩy cuộc hội thoại lên Top 1 khi gửi text
       setConversations((prev) => {
         let updated = [...prev];
         const idx = updated.findIndex((c) => c._id === currentChat._id);
@@ -418,10 +404,15 @@ const MessengerPage = () => {
     );
 
   return (
-    <div className="bg-gray-100 h-[calc(100vh-80px)] flex justify-center p-4">
-      <div className="max-w-6xl w-full bg-white rounded-[2rem] shadow-xl border border-gray-100 flex overflow-hidden">
-        {/* SIDEBAR TRÁI */}
-        <div className="w-1/3 border-r border-gray-100 bg-white flex flex-col">
+    <div className="bg-gray-100 h-[calc(100vh-80px)] flex justify-center p-0 md:p-4">
+      {/* 🚀 Đã sửa: Cho form ôm sát viền ở mobile, có bo góc ở màn hình PC */}
+      <div className="w-full md:max-w-6xl md:w-full bg-white md:rounded-[2rem] shadow-none md:shadow-xl border-0 md:border border-gray-100 flex overflow-hidden">
+        
+        {/* ========================================== */}
+        {/* SIDEBAR TRÁI: DANH SÁCH CUỘC TRÒ CHUYỆN */}
+        {/* 🚀 Đã sửa logic: Ẩn trên mobile nếu đã chọn chat, hiện full w-full */}
+        {/* ========================================== */}
+        <div className={`${currentChat ? 'hidden md:flex' : 'flex'} w-full md:w-1/3 border-r border-gray-100 bg-white flex-col`}>
           <div className="p-5 border-b border-gray-100 flex items-center gap-4">
             <Link
               to="/thu-mua"
@@ -455,7 +446,7 @@ const MessengerPage = () => {
                   <div
                     key={c._id}
                     onClick={() => setCurrentChat(c)}
-                    className={`flex items-center gap-4 p-3.5 rounded-2xl cursor-pointer transition-all duration-200 ${isActive ? "bg-purple-600 text-white shadow-md" : "hover:bg-purple-50 bg-white"}`}
+                    className={`flex items-center gap-4 p-3.5 rounded-2xl cursor-pointer transition-all duration-200 ${isActive ? "bg-purple-600 text-white shadow-md hidden md:flex" : "hover:bg-purple-50 bg-white"}`}
                   >
                     <div className="relative">
                       {friend.avatar ? (
@@ -507,8 +498,11 @@ const MessengerPage = () => {
           </div>
         </div>
 
+        {/* ========================================== */}
         {/* KHU VỰC CHAT BÊN PHẢI */}
-        <div className="w-2/3 flex flex-col bg-[#F9FAFB] relative">
+        {/* 🚀 Đã sửa logic: Ẩn trên mobile nếu chưa chọn chat, chiếm w-full khi mở */}
+        {/* ========================================== */}
+        <div className={`${!currentChat ? 'hidden md:flex' : 'flex'} w-full md:w-2/3 flex-col bg-[#F9FAFB] relative`}>
           {!currentChat ? (
             <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
               <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-sm mb-6">
@@ -524,48 +518,56 @@ const MessengerPage = () => {
           ) : (
             <>
               {/* Header Chat */}
-              <div className="px-6 py-4 bg-white/80 backdrop-blur-md border-b border-gray-100 flex justify-between items-center shadow-sm z-10 sticky top-0">
-                <div className="flex items-center gap-4">
+              <div className="px-4 md:px-6 py-4 bg-white/80 backdrop-blur-md border-b border-gray-100 flex justify-between items-center shadow-sm z-10 sticky top-0">
+                <div className="flex items-center gap-3 md:gap-4">
+                  {/* 🚀 NÚT BACK DÀNH RIÊNG CHO MOBILE */}
+                  <button 
+                    onClick={() => setCurrentChat(null)}
+                    className="md:hidden text-gray-400 hover:text-purple-600 p-2 -ml-2 rounded-full transition-colors"
+                  >
+                    <FaArrowLeft size={18} />
+                  </button>
+
                   {getFriendInfo(currentChat.participants).avatar ? (
                     <img
                       src={getFriendInfo(currentChat.participants).avatar}
                       alt="avatar"
-                      className="w-11 h-11 rounded-full object-cover border border-gray-200"
+                      className="w-10 h-10 md:w-11 md:h-11 rounded-full object-cover border border-gray-200"
                     />
                   ) : (
-                    <div className="w-11 h-11 bg-gradient-to-tr from-purple-600 to-blue-500 text-white rounded-full flex justify-center items-center font-black text-lg">
+                    <div className="w-10 h-10 md:w-11 md:h-11 bg-gradient-to-tr from-purple-600 to-blue-500 text-white rounded-full flex justify-center items-center font-black text-lg">
                       {getFriendInfo(currentChat.participants)
                         .name.charAt(0)
                         .toUpperCase()}
                     </div>
                   )}
-                  <div>
-                    <h3 className="font-black text-gray-800 text-lg tracking-tight">
+                  <div className="min-w-0">
+                    <h3 className="font-black text-gray-800 text-base md:text-lg tracking-tight truncate max-w-[150px] sm:max-w-[200px]">
                       {getFriendInfo(currentChat.participants).name}
                     </h3>
-                    <p className="text-xs text-green-500 font-bold flex items-center gap-1">
+                    <p className="text-[10px] md:text-xs text-green-500 font-bold flex items-center gap-1">
                       <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block animate-pulse"></span>{" "}
                       Đang hoạt động
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 md:gap-3">
                   {currentChat.post && (
                     <Link
                       to={`/thu-mua/post/${currentChat.post._id}`}
-                      className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition group"
+                      className="flex items-center gap-2 md:gap-3 bg-white px-3 md:px-4 py-2 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition group"
                     >
                       <img
                         src={currentChat.post.images[0]}
                         alt="sp"
-                        className="w-10 h-10 rounded-lg object-cover"
+                        className="w-8 h-8 md:w-10 md:h-10 rounded-lg object-cover"
                       />
-                      <div className="text-right hidden md:block">
-                        <p className="font-bold text-gray-700 truncate w-32 text-xs group-hover:text-purple-600 transition-colors">
+                      <div className="text-right hidden sm:block">
+                        <p className="font-bold text-gray-700 truncate w-24 md:w-32 text-xs group-hover:text-purple-600 transition-colors">
                           {currentChat.post.title}
                         </p>
-                        <p className="text-red-600 font-black text-sm">
+                        <p className="text-red-600 font-black text-xs md:text-sm">
                           {currentChat.post.price > 0
                             ? new Intl.NumberFormat("vi-VN", {
                                 style: "currency",
@@ -580,7 +582,7 @@ const MessengerPage = () => {
                   <button
                     type="button"
                     onClick={() => handleDeleteChat(currentChat._id)}
-                    className="p-3 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-sm"
+                    className="p-2.5 md:p-3 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all shadow-sm shrink-0"
                     title="Xóa cuộc trò chuyện này"
                   >
                     <FaTrash size={14} />
@@ -592,7 +594,7 @@ const MessengerPage = () => {
               <div
                 ref={chatContainerRef}
                 onScroll={handleScroll}
-                className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 scroll-smooth custom-scrollbar"
+                className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-4 scroll-smooth custom-scrollbar"
               >
                 {isLoadMoreLoading && (
                   <div className="text-center py-2 text-xs text-purple-600 font-bold flex justify-center items-center gap-2">
@@ -609,10 +611,10 @@ const MessengerPage = () => {
                       className={`flex ${isMe ? "justify-end" : "justify-start"}`}
                     >
                       <div
-                        className={`flex flex-col ${isMe ? "items-end" : "items-start"} max-w-[70%]`}
+                        className={`flex flex-col ${isMe ? "items-end" : "items-start"} max-w-[85%] sm:max-w-[70%]`}
                       >
                         <div
-                          className={`px-5 py-3 rounded-2xl text-[15px] leading-relaxed shadow-sm font-medium
+                          className={`px-4 md:px-5 py-2.5 md:py-3 rounded-2xl text-[14px] md:text-[15px] leading-relaxed shadow-sm font-medium
                             ${
                               isMe
                                 ? "bg-gradient-to-br from-purple-600 to-purple-700 text-white rounded-tr-sm"
@@ -623,10 +625,10 @@ const MessengerPage = () => {
                             <img
                               src={m.imageUrl}
                               alt="attached"
-                              className="max-w-[200px] md:max-w-[250px] rounded-xl mb-1 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                              className="max-w-[180px] md:max-w-[250px] rounded-xl mb-1 object-cover cursor-pointer hover:opacity-90 transition-opacity"
                             />
                           )}
-                          {m.text && <span>{m.text}</span>}
+                          {m.text && <span className="break-words block">{m.text}</span>}
                         </div>
 
                         <div className="flex items-center gap-1 mt-1 px-1">
@@ -672,27 +674,27 @@ const MessengerPage = () => {
               </div>
 
               {/* Thanh nhập liệu */}
-              <div className="p-4 bg-white border-t border-gray-100 z-10 relative">
+              <div className="p-3 md:p-4 bg-white border-t border-gray-100 z-10 relative">
                 {/* Bảng chọn Emoji Nổi */}
                 {showEmojiPicker && (
                   <div
                     ref={emojiPickerRef}
-                    className="absolute bottom-[80px] left-4 z-50 shadow-2xl rounded-lg"
+                    className="absolute bottom-[70px] left-2 md:left-4 z-50 shadow-2xl rounded-lg"
                   >
                     <EmojiPicker
                       onEmojiClick={onEmojiClick}
                       autoFocusSearch={false}
-                      width={300}
-                      height={400}
+                      width={window.innerWidth < 640 ? 280 : 300} 
+                      height={350}
                     />
                   </div>
                 )}
 
                 <form
                   onSubmit={handleSendMessage}
-                  className="flex items-end gap-3"
+                  className="flex items-end gap-2 md:gap-3"
                 >
-                  <div className="flex gap-2 pb-2 relative">
+                  <div className="flex gap-1 md:gap-2 pb-2 relative">
                     <input
                       type="file"
                       accept="image/*"
@@ -725,8 +727,8 @@ const MessengerPage = () => {
                   <textarea
                     placeholder="Aa"
                     rows="1"
-                    className="flex-1 bg-gray-100 text-gray-800 rounded-3xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-purple-200 text-[15px] font-medium resize-none custom-scrollbar"
-                    style={{ minHeight: "50px", maxHeight: "120px" }}
+                    className="flex-1 bg-gray-100 text-gray-800 rounded-3xl px-4 md:px-5 py-3 md:py-3.5 outline-none focus:ring-2 focus:ring-purple-200 text-[14px] md:text-[15px] font-medium resize-none custom-scrollbar"
+                    style={{ minHeight: "45px", maxHeight: "100px" }}
                     value={newMessage}
                     onChange={handleTyping}
                     onKeyDown={(e) => {
@@ -740,9 +742,9 @@ const MessengerPage = () => {
                   <button
                     type="submit"
                     disabled={!newMessage.trim()}
-                    className="w-12 h-12 mb-0.5 rounded-full bg-gradient-to-tr from-purple-600 to-blue-600 hover:shadow-lg hover:shadow-purple-500/30 text-white flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                    className="w-11 h-11 md:w-12 md:h-12 mb-0.5 rounded-full bg-gradient-to-tr from-purple-600 to-blue-600 hover:shadow-lg hover:shadow-purple-500/30 text-white flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
                   >
-                    <FaPaperPlane className="text-[16px] ml-[-2px]" />
+                    <FaPaperPlane className="text-[14px] md:text-[16px] ml-[-2px]" />
                   </button>
                 </form>
               </div>

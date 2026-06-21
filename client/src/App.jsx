@@ -1,5 +1,5 @@
 // client/src/App.jsx
-import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet, useLocation } from "react-router-dom"; // ✅ IMPORT THÊM useLocation
 // ✅ IMPORT THƯ VIỆN TOAST Ở ĐÂY
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -47,12 +47,17 @@ import AdminUserList from "./pages/Admin/AdminUserList";
 
 // LAYOUT DÀNH CHO KHÁCH HÀNG (Có Footer + Chatbot)
 const PublicLayoutWithFooter = () => {
+  // ✅ DÙNG useLocation ĐỂ LẤY URL HIỆN TẠI
+  const location = useLocation();
+  const isMessengerPage = location.pathname.includes('/messenger');
+
   return (
     <>
       <div className="flex-1">
         <Outlet /> 
       </div>
-      <ChatBot />
+      {/* ✅ CHỈ RENDER CHATBOT NẾU KHÔNG PHẢI TRANG MESSENGER */}
+      {!isMessengerPage && <ChatBot />}
       <Footer />
     </>
   );

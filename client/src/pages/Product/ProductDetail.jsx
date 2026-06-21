@@ -7,7 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { 
   FaShoppingCart, FaCheck, FaTimes, FaMobileAlt, FaMicrochip, 
   FaMemory, FaBatteryFull, FaStar, FaUserCircle, FaInfoCircle, 
-  FaHeart, FaChevronRight, FaBolt, FaShieldAlt, FaVideo // ✅ ĐÃ THÊM FaVideo
+  FaHeart, FaChevronRight, FaBolt, FaShieldAlt, FaVideo 
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 
@@ -27,6 +27,20 @@ const ProductDetail = () => {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [refresh, setRefresh] = useState(0);
+
+  // ✅ HÀM MỚI: Bóc tách ID YouTube và tạo link nhúng an toàn
+  const getYouTubeEmbedUrl = (url) => {
+    if (!url) return null;
+    if (url.includes('/embed/')) return url;
+
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+
+    if (match && match[2].length === 11) {
+        return `https://www.youtube.com/embed/${match[2]}`;
+    }
+    return null;
+  };
 
   // ==========================================
   // 1. TẢI DỮ LIỆU SẢN PHẨM & GỢI Ý
@@ -66,7 +80,6 @@ const ProductDetail = () => {
   // ==========================================
   const handleAddToCart = () => {
     if (product.countInStock > 0) {
-      // Truyền giá đã giảm vào giỏ hàng
       const finalPrice = product.price - (product.price * (product.discount || 0) / 100);
       const productToCart = { ...product, price: finalPrice };
       
@@ -131,7 +144,6 @@ const ProductDetail = () => {
 
   const galleryImages = product.images?.length > 0 ? product.images : [product.image];
 
-  // LOGIC TÍNH GIÁ TIỀN THỰC TẾ
   const originalPrice = product.price;
   const discountPercent = product.discount || 0;
   const finalPrice = originalPrice - (originalPrice * discountPercent / 100);
@@ -191,13 +203,11 @@ const ProductDetail = () => {
               {product.name}
             </h1>
             
-            {/* LOGIC GIÁ TIỀN HOÀN CHỈNH */}
             <div className="flex items-end gap-4 mb-6 flex-wrap">
               <div className="text-4xl font-black text-red-600 tracking-tight">
                 {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(finalPrice)}
               </div>
               
-              {/* Chỉ hiển thị giá gạch ngang nếu có discount > 0 */}
               {discountPercent > 0 && (
                 <div className="flex items-center gap-2 mb-1">
                   <div className="text-lg text-gray-400 line-through font-medium">
@@ -264,17 +274,18 @@ const ProductDetail = () => {
              dangerouslySetInnerHTML={{ __html: product.description || 'Đang cập nhật thông tin.' }}
            />
 
-           {/* ✅ THÊM MỚI: HIỂN THỊ VIDEO YOUTUBE NẾU CÓ */}
-           {product.video && (
+           {/* ✅ THÊM MỚI: HIỂN THỊ VIDEO YOUTUBE NẾU CÓ VÀ HỢP LỆ */}
+           {product.video && getYouTubeEmbedUrl(product.video) && (
              <div className="mt-10 border-t border-gray-100 pt-8">
                 <h4 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                   <FaVideo className="text-red-500" /> Video Review
                 </h4>
-                <div className="aspect-video rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50">
+                <div className="aspect-video rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50 relative">
                   <iframe 
-                    src={product.video} 
+                    src={getYouTubeEmbedUrl(product.video)} 
                     title="Video Review" 
-                    className="w-full h-full" 
+                    className="absolute top-0 left-0 w-full h-full" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                   ></iframe>
                 </div>
@@ -285,7 +296,6 @@ const ProductDetail = () => {
         <div className="bg-white rounded-3xl p-6 lg:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 h-fit sticky top-6">
           <h3 className="text-xl font-black mb-6 text-gray-900">Cấu hình chi tiết</h3>
           
-          {/* BẢNG LƯỚI THÔNG SỐ (TABLE GRID) */}
           <div className="border border-gray-200 rounded-2xl overflow-hidden">
             <table className="w-full text-left text-sm">
               <tbody>
@@ -377,7 +387,6 @@ const ProductDetail = () => {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {relatedProducts.map((item, index) => {
-              // Xử lý giá tiền cho sản phẩm gợi ý
               const itemDiscount = item.discount || 0;
               const itemFinalPrice = item.price - (item.price * itemDiscount / 100);
 
